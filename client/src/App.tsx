@@ -1,62 +1,48 @@
-import { useState } from "react";
-import { checkSystem, Category } from "./api.js";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { RequesterProvider, useRequester } from "./context/RequesterContext";
+import RequesterSelection from "./features/requester/RequesterSelection";
+import SystemCheck from "./features/system/SystemCheck";
+import RequesterBadge from "./features/requester/RequesterBadge";
 
-type UiState = "idle" | "loading" | "success" | "error";
-
-export default function App() {
-  const [state, setState] = useState<UiState>("idle");
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [errorMessage, setErrorMessage] = useState("");
-
-  async function handleCheck() {
-    setState("loading");
-    setErrorMessage("");
-    try {
-      const result = await checkSystem();
-      setCategories(result.categories);
-      setState("success");
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Unknown error");
-      setState("error");
-    }
+function RequireRequester({ children }: { children: React.ReactNode }) {
+  const { requester } = useRequester();
+  if (!requester) {
+    return <Navigate to="/select-requester" replace />;
   }
+  return <>{children}</>;
+}
 
+
+function MyTicketsPlaceholder() {
   return (
-    <div className="container py-5" style={{ maxWidth: 640 }}>
-      <h1 className="h3 mb-4">
+    <div className="container py-5">
+      <h1 className="h3">
         TokTickIT <span className="text-success">IT Service Desk</span>
       </h1>
-
-      <button className="btn btn-success" onClick={handleCheck} disabled={state === "loading"}>
-        {state === "loading" ? "Loading…" : "Check System"}
-      </button>
-
-      {state === "loading" && <p className="mt-4">⏳ Loading…</p>}
-
-      {state === "success" && (
-        <div className="mt-4">
-          <p>
-            <strong>System Status:</strong> <span className="text-success">Online</span>
-          </p>
-          <p className="mb-1">
-            <strong>Supported Request Categories:</strong>
-          </p>
-          <ul>
-            {categories.map((c) => (
-              <li key={c.id}>{c.name}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {state === "error" && (
-        <div className="mt-4 text-danger">
-          <p>
-            <strong>System Status:</strong> Offline
-          </p>
-          <p>{errorMessage}</p>
-        </div>
-      )}
+      <RequesterBadge />
+      <p className="text-muted mt-3">My Tickets screen coming in Issue 8.</p>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <RequesterProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/system-check" element={<SystemCheck />} />
+          <Route path="/select-requester" element={<RequesterSelection />} />
+          <Route
+            path="/my-tickets"
+            element={
+              <RequireRequester>
+                <MyTicketsPlaceholder />
+              </RequireRequester>
+            }
+          />
+          <Route path="/" element={<Navigate to="/select-requester" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </RequesterProvider>
   );
 }

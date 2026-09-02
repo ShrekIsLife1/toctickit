@@ -12,7 +12,30 @@ async function main() {
     });
   }
   console.log(`Seeded ${CATEGORY_NAMES.length} categories.`);
+
+  await seedRequesters();
 }
+
+const REQUESTER_SEED = [
+  { name: "Jennifer Anderson", email: "jennifer.anderson@example.com", isActive: true },
+  { name: "Michael Brown", email: "michael.brown@example.com", isActive: true },
+  { name: "Sarah Johnson", email: "sarah.johnson@example.com", isActive: true },
+  { name: "David Lee", email: "david.lee@example.com", isActive: true },
+  { name: "Former Employee", email: "former.employee@example.com", isActive: false },
+];
+
+async function seedRequesters() {
+  const prisma = getPrisma();
+  for (const r of REQUESTER_SEED) {
+    await prisma.requesterUser.upsert({
+      where: { email: r.email },
+      update: {},
+      create: r,
+    });
+  }
+  console.log(`Seeded ${REQUESTER_SEED.length} requesters.`);
+}
+
 
 main()
   .catch((e) => {
@@ -22,3 +45,5 @@ main()
   .finally(async () => {
     await getPrisma().$disconnect();
   });
+
+  

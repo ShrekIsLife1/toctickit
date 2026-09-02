@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import App from "../../src/App.js";
+import SystemCheck from "../../src/features/system/SystemCheck.js";
 import * as api from "../../src/api.js";
 
 describe("App", () => {
   // WORKED EXAMPLE — provided for you.
   it("renders the TokTickIT heading", () => {
-    render(<App />);
+    render(<SystemCheck />);
     expect(screen.getByText(/TokTickIT/i)).toBeInTheDocument();
   });
 
@@ -25,7 +25,7 @@ describe("App", () => {
       ],
     });
 
-    render(<App />);
+    render(<SystemCheck />);
     fireEvent.click(screen.getByRole("button", { name: /check system/i }));
 
     await waitFor(() => {
@@ -43,7 +43,7 @@ describe("App", () => {
       new Error("Unable to connect to TokTickIT API")
     );
 
-    render(<App />);
+    render(<SystemCheck />);
     fireEvent.click(screen.getByRole("button", { name: /check system/i }));
 
     await waitFor(() => {
