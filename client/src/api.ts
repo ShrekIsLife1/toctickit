@@ -121,3 +121,56 @@ export async function fetchRequesters(): Promise<Requester[]> {
   }
   return res.json();
 }
+
+export interface TicketListItem {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  categoryId: number;
+  requestedPriority: string;
+  currentStatus: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TicketListResponse {
+  data: TicketListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface TicketListParams {
+  search?: string;
+  categoryId?: number;
+  requestedPriority?: string;
+  currentStatus?: string;
+  sortBy?: "createdAt" | "updatedAt";
+  sortDir?: "asc" | "desc";
+  page?: number;
+}
+
+export async function fetchTickets(
+  requesterId: number,
+  params: TicketListParams = {}
+): Promise<TicketListResponse> {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.categoryId) query.set("categoryId", String(params.categoryId));
+  if (params.requestedPriority) query.set("requestedPriority", params.requestedPriority);
+  if (params.currentStatus) query.set("currentStatus", params.currentStatus);
+  if (params.sortBy) query.set("sortBy", params.sortBy);
+  if (params.sortDir) query.set("sortDir", params.sortDir);
+  if (params.page) query.set("page", String(params.page));
+
+  const res = await fetch(`${API_URL}/api/tickets?${query.toString()}`, {
+    headers: { "X-Requester-Id": String(requesterId) },
+  });
+  if (!res.ok) {
+    throw new Error("Unable to load tickets");
+  }
+  return res.json();
+}
