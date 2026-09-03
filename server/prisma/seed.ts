@@ -14,6 +14,7 @@ async function main() {
   console.log(`Seeded ${CATEGORY_NAMES.length} categories.`);
 
   await seedRequesters();
+  await seedRelatedSystems();
 }
 
 const REQUESTER_SEED = [
@@ -36,6 +37,27 @@ async function seedRequesters() {
   console.log(`Seeded ${REQUESTER_SEED.length} requesters.`);
 }
 
+const RELATED_SYSTEM_NAMES = [
+  "Email",
+  "Campus Wi-Fi",
+  "VPN",
+  "LEB2 App",
+  "Grade Submission App",
+  "Printer",
+  "Corporate Laptop",
+];
+
+async function seedRelatedSystems() {
+  const prisma = getPrisma();
+  for (const name of RELATED_SYSTEM_NAMES) {
+    await prisma.relatedSystem.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+  }
+  console.log(`Seeded ${RELATED_SYSTEM_NAMES.length} related systems.`);
+}
 
 main()
   .catch((e) => {

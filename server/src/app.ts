@@ -1,6 +1,8 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import { getPrisma } from "./prisma.js";
+import { formatTicketNumber } from "./ticketNumber.js";
+import { validateCreateTicket } from "./validation/ticketValidation.js";
 // getPrisma() is your lazy database handle. Call it INSIDE a route when you
 // need the DB (Issue 4). It is intentionally unused until then.
 
@@ -32,6 +34,91 @@ app.get("/api/requesters", async (_req: Request, res: Response) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to retrieve requesters" } });
+  }
+});
+
+app.get("/api/related-systems", async (_req: Request, res: Response) => {
+  try {
+    const relatedSystems = await getPrisma().relatedSystem.findMany({
+      where: { isActive: true },
+      orderBy: { id: "asc" },
+      select: { id: true, name: true },
+    });
+    res.status(200).json(relatedSystems);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to retrieve related systems" } });
+  }
+});
+
+app.post("/api/tickets", async (req: Request, res: Response) => {
+  const requesterIdHeader = req.header("X-Requester-Id");
+  const requesterId = requesterIdHeader ? Number(requesterIdHeader) : NaN;
+
+  if (!requesterIdHeader || !Number.isInteger(requesterId)) {
+    return res.status(400).json({
+      error: { code: "MISSING_REQUESTER", message: "A valid X-Requester-Id header is required" },
+    });
+  }
+
+  const { categoryId, relatedSystemId, summary, description, requestedPriority } = req.body;
+
+  const validation = validateCreateTicket({ categoryId, relatedSystemId, summary, description, requestedPriority });
+  if (!validation.valid) {
+    return res.status(400).json({
+      error: { code: "VALIDATION_ERROR", message: "One or more fields are invalid", fields: validation.fields },
+    });
+  }
+
+  try {
+    const prisma = getPrisma();
+
+    const [requester, category, relatedSystem] = await Promise.all([
+      prisma.requesterUser.findFirst({ where: { id: requesterId, isActive: true } }),
+      prisma.category.findUnique({ where: { id: categoryId } }),
+      prisma.relatedSystem.findFirst({ where: { id: relatedSystemId, isActive: true } }),
+    ]);
+
+    if (!requester) {
+      return res.status(400).json({
+        error: { code: "MISSING_REQUESTER", message: "Selected requester is not active" },
+      });
+    }
+    if (!category) {
+      return res.status(400).json({
+        error: { code: "UNKNOWN_REFERENCE", message: "Selected category does not exist" },
+      });
+    }
+    if (!relatedSystem) {
+      return res.status(400).json({
+        error: { code: "UNKNOWN_REFERENCE", message: "Selected related system does not exist" },
+      });
+    }
+
+    const year = new Date().getFullYear();
+    const ticket = await prisma.$transaction(async (tx) => {
+      const countThisYear = await tx.ticket.count({
+        where: { ticketNumber: { startsWith: `TKT-${year}-` } },
+      });
+      const ticketNumber = formatTicketNumber(countThisYear + 1, year);
+
+      return tx.ticket.create({
+        data: {
+          ticketNumber,
+          requesterId,
+          categoryId,
+          relatedSystemId,
+          summary: summary.trim(),
+          description: description.trim(),
+          requestedPriority,
+        },
+      });
+    });
+
+    res.status(201).json(ticket);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to create ticket" } });
   }
 });
 // ---------------------------------------------------------------------------
