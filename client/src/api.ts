@@ -174,3 +174,84 @@ export async function fetchTickets(
   }
   return res.json();
 }
+
+export interface Attachment {
+  id: number;
+  ticketId: number;
+  originalFilename: string;
+  mimeType: string;
+  sizeBytes: number;
+  isRemoved: boolean;
+  removedAt: string | null;
+  removalReason: string | null;
+  uploadedAt: string;
+}
+
+export async function fetchTicket(requesterId: number, ticketId: number): Promise<Ticket> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}`, {
+    headers: { "X-Requester-Id": String(requesterId) },
+  });
+  if (res.status === 404) {
+    throw new Error("NOT_FOUND");
+  }
+  if (!res.ok) {
+    throw new Error("Unable to load ticket");
+  }
+  return res.json();
+}
+
+export async function fetchAttachments(requesterId: number, ticketId: number): Promise<Attachment[]> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
+    headers: { "X-Requester-Id": String(requesterId) },
+  });
+  if (!res.ok) {
+    throw new Error("Unable to load attachments");
+  }
+  return res.json();
+}
+
+export async function uploadAttachment(
+  requesterId: number,
+  ticketId: number,
+  file: File
+): Promise<Attachment> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
+    method: "POST",
+    headers: { "X-Requester-Id": String(requesterId) },
+    body: formData,
+  });
+
+  const body = await res.json();
+  if (!res.ok) {
+    throw new Error(body?.error?.message ?? "Unable to upload attachment");
+  }
+  return body;
+}
+
+export function downloadAttachmentUrl(attachmentId: number): string {
+  return `${API_URL}/api/attachments/${attachmentId}/download`;
+}
+
+export async function removeAttachment(
+  requesterId: number,
+  attachmentId: number,
+  reason: string
+): Promise<Attachment> {
+  const res = await fetch(`${API_URL}/api/attachments/${attachmentId}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Requester-Id": String(requesterId),
+    },
+    body: JSON.stringify({ reason }),
+  });
+
+  const body = await res.json();
+  if (!res.ok) {
+    throw new Error(body?.error?.message ?? "Unable to remove attachment");
+  }
+  return body;
+}
