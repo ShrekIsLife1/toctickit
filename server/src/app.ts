@@ -3,6 +3,8 @@ import cors from "cors";
 import { getPrisma } from "./prisma.js";
 import { formatTicketNumber } from "./ticketNumber.js";
 import { validateCreateTicket } from "./validation/ticketValidation.js";
+import { parsePagination, parseSort } from "./queryParsing.js";
+
 // getPrisma() is your lazy database handle. Call it INSIDE a route when you
 // need the DB (Issue 4). It is intentionally unused until then.
 
@@ -139,6 +141,82 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Unable to retrieve categories" });
+  }
+});
+
+app.get("/api/tickets", async (req: Request, res: Response) => {
+  const requesterIdHeader = req.header("X-Requester-Id");
+  const requesterId = requesterIdHeader ? Number(requesterIdHeader) : NaN;
+
+  if (!requesterIdHeader || !Number.isInteger(requesterId)) {
+    return res.status(400).json({
+      error: { code: "MISSING_REQUESTER", message: "A valid X-Requester-Id header is required" },
+    });
+  }
+
+  const { page, pageSize } = parsePagination(req.query as Record<string, unknown>);
+  const { sortBy, sortDir } = parseSort(req.query as Record<string, unknown>);
+
+  const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+  const categoryId = req.query.categoryId ? Number(req.query.categoryId) : undefined;
+  const requestedPriority =
+    typeof req.query.requestedPriority === "string" ? req.query.requestedPriority : undefined;
+  const currentStatus =
+    typeof req.query.currentStatus === "string" ? req.query.currentStatus : undefined;
+
+  const where: Record<string, unknown> = { requesterId };
+
+  if (search) {
+    where.OR = [
+      { ticketNumber: { contains: search, mode: "insensitive" } },
+      { summary: { contains: search, mode: "insensitive" } },
+    ];
+  }
+  if (categoryId && Number.isInteger(categoryId)) {
+    where.categoryId = categoryId;
+  }
+  if (requestedPriority) {
+    where.requestedPriority = requestedPriority;
+  }
+  if (currentStatus) {
+    where.currentStatus = currentStatus;
+  }
+
+  try {
+    const prisma = getPrisma();
+
+    const [data, total] = await Promise.all([
+      prisma.ticket.findMany({
+        where,
+        orderBy: { [sortBy]: sortDir },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          ticketNumber: true,
+          summary: true,
+          categoryId: true,
+          requestedPriority: true,
+          currentStatus: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.ticket.count({ where }),
+    ]);
+
+    res.status(200).json({
+      data,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to retrieve tickets" } });
   }
 });
 

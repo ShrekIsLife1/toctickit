@@ -4,6 +4,7 @@ import RequesterSelection from "./features/requester/RequesterSelection";
 import SystemCheck from "./features/system/SystemCheck";
 import RequesterBadge from "./features/requester/RequesterBadge";
 import CreateTicket from "./features/tickets/CreateTicket";
+import MyTickets from "./features/tickets/MyTickets";
 
 function RequireRequester({ children }: { children: React.ReactNode }) {
   const { requester } = useRequester();
@@ -11,19 +12,6 @@ function RequireRequester({ children }: { children: React.ReactNode }) {
     return <Navigate to="/select-requester" replace />;
   }
   return <>{children}</>;
-}
-
-function MyTicketsPlaceholder() {
-  return (
-    <div className="container py-5">
-      <h1 className="h3">
-        TokTickIT <span className="text-success">IT Service Desk</span>
-      </h1>
-      <RequesterBadge />
-      <p className="text-muted mt-3">My Tickets screen coming in Issue 8.</p>
-      <Link to="/create-ticket" className="btn btn-success btn-sm mt-2">+ Create Ticket</Link>    
-    </div>
-  );
 }
 
 export default function App() {
@@ -37,7 +25,7 @@ export default function App() {
             path="/my-tickets"
             element={
               <RequireRequester>
-                <MyTicketsPlaceholder />
+                <MyTickets />
               </RequireRequester>
             }
           />
