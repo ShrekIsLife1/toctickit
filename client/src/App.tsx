@@ -1,8 +1,9 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { RequesterProvider, useRequester } from "./context/RequesterContext";
 import RequesterSelection from "./features/requester/RequesterSelection";
 import SystemCheck from "./features/system/SystemCheck";
 import RequesterBadge from "./features/requester/RequesterBadge";
+import CreateTicket from "./features/tickets/CreateTicket";
 
 function RequireRequester({ children }: { children: React.ReactNode }) {
   const { requester } = useRequester();
@@ -12,7 +13,6 @@ function RequireRequester({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-
 function MyTicketsPlaceholder() {
   return (
     <div className="container py-5">
@@ -21,6 +21,7 @@ function MyTicketsPlaceholder() {
       </h1>
       <RequesterBadge />
       <p className="text-muted mt-3">My Tickets screen coming in Issue 8.</p>
+      <Link to="/create-ticket" className="btn btn-success btn-sm mt-2">+ Create Ticket</Link>    
     </div>
   );
 }
@@ -41,6 +42,14 @@ export default function App() {
             }
           />
           <Route path="/" element={<Navigate to="/select-requester" replace />} />
+          <Route
+            path="/create-ticket"
+            element={
+              <RequireRequester>
+              <CreateTicket />
+              </RequireRequester>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </RequesterProvider>
