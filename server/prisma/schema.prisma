@@ -72,8 +72,24 @@ model Ticket {
   resolutionSummary String?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
-
+  attachments       Attachment[]
   @@index([requesterId])
   @@index([currentStatus])
   @@index([categoryId])
+}
+
+model Attachment {
+  id               Int       @id @default(autoincrement())
+  ticketId         Int
+  ticket           Ticket    @relation(fields: [ticketId], references: [id])
+  originalFilename String
+  storedFilename   String    @unique
+  mimeType         String
+  sizeBytes        Int
+  isRemoved        Boolean   @default(false)
+  removedAt        DateTime?
+  removalReason    String?
+  uploadedAt       DateTime  @default(now())
+
+  @@index([ticketId])
 }

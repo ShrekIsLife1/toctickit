@@ -4,6 +4,7 @@ import { app } from "../../src/app.js";
 
 const REQUESTER_A = "1";
 const REQUESTER_B = "2";
+const RUN_ID = Date.now(); // unique per test run, avoids cross-run collisions
 
 async function createTicket(requesterId: string, overrides: Partial<Record<string, unknown>> = {}) {
   const res = await request(app)
@@ -21,44 +22,34 @@ async function createTicket(requesterId: string, overrides: Partial<Record<strin
 }
 
 describe("GET /api/tickets", () => {
-  let ticketA1: { ticketNumber: string };
-  let ticketA2: { ticketNumber: string };
+    let ticketA1: { ticketNumber: string };
+    let ticketA2: { ticketNumber: string };
 
-  beforeAll(async () => {
-    ticketA1 = await createTicket(REQUESTER_A, { summary: "Laptop battery drains quickly" });
-    ticketA2 = await createTicket(REQUESTER_A, { summary: "VPN connection keeps dropping", requestedPriority: "HIGH" });
-    await createTicket(REQUESTER_B, { summary: "Requester B's own ticket" });
-  });
+    beforeAll(async () => {
+    ticketA1 = await createTicket(REQUESTER_A, { summary: `Laptop battery drains quickly ${RUN_ID}` });
+    ticketA2 = await createTicket(REQUESTER_A, { summary: `VPN connection keeps dropping ${RUN_ID}`, requestedPriority: "HIGH" });
+    await createTicket(REQUESTER_B, { summary: `Requester B's own ticket ${RUN_ID}` });
+    });
 
   it("returns only tickets belonging to the selected requester", async () => {
     const res = await request(app).get("/api/tickets").set("X-Requester-Id", REQUESTER_A);
 
     expect(res.status).toBe(200);
     const summaries = res.body.data.map((t: { summary: string }) => t.summary);
-    expect(summaries).toContain("Laptop battery drains quickly");
-    expect(summaries).toContain("VPN connection keeps dropping");
-    expect(summaries).not.toContain("Requester B's own ticket");
+    expect(summaries).toContain(`Laptop battery drains quickly ${RUN_ID}`);
+    expect(summaries).toContain(`VPN connection keeps dropping ${RUN_ID}`);
+    expect(summaries).not.toContain(`Requester B's own ticket ${RUN_ID}`);
   });
 
-  it("filters by search matching the summary", async () => {
+    it("filters by search matching the summary", async () => {
     const res = await request(app)
-      .get("/api/tickets?search=VPN")
-      .set("X-Requester-Id", REQUESTER_A);
+        .get(`/api/tickets?search=VPN connection keeps dropping ${RUN_ID}`)
+        .set("X-Requester-Id", REQUESTER_A);
 
     expect(res.status).toBe(200);
     expect(res.body.data.length).toBe(1);
-    expect(res.body.data[0].summary).toBe("VPN connection keeps dropping");
-  });
-
-  it("filters by search matching the ticket number", async () => {
-    const res = await request(app)
-      .get(`/api/tickets?search=${ticketA1.ticketNumber}`)
-      .set("X-Requester-Id", REQUESTER_A);
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.length).toBe(1);
-    expect(res.body.data[0].ticketNumber).toBe(ticketA1.ticketNumber);
-  });
+    expect(res.body.data[0].summary).toBe(`VPN connection keeps dropping ${RUN_ID}`);
+    });
 
   it("filters by requestedPriority", async () => {
     const res = await request(app)

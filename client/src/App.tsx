@@ -5,6 +5,7 @@ import SystemCheck from "./features/system/SystemCheck";
 import RequesterBadge from "./features/requester/RequesterBadge";
 import CreateTicket from "./features/tickets/CreateTicket";
 import MyTickets from "./features/tickets/MyTickets";
+import RequesterTicketDetail from "./features/tickets/RequesterTicketDetail";
 
 function RequireRequester({ children }: { children: React.ReactNode }) {
   const { requester } = useRequester();
@@ -35,6 +36,14 @@ export default function App() {
             element={
               <RequireRequester>
               <CreateTicket />
+              </RequireRequester>
+            }
+          />
+          <Route
+            path="/tickets/:id"
+            element={
+              <RequireRequester>
+                <RequesterTicketDetail />
               </RequireRequester>
             }
           />
