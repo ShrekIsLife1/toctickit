@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { fetchTicket, fetchAttachments, Ticket, Attachment } from "../../api";
 import { useRequester } from "../../context/RequesterContext";
 import AttachmentSection from "./AttachmentSection";
+import RequesterBadge from "../requester/RequesterBadge";
 
 type LoadState = "loading" | "success" | "not-found" | "error";
 
@@ -88,6 +89,10 @@ export default function RequesterTicketDetail() {
       <Link to="/my-tickets" className="btn btn-outline-secondary btn-sm mb-3">
         ← Back to My Tickets
       </Link>
+
+      <div className="mb-3">
+        <RequesterBadge />
+      </div>
 
       <div className="card">
         <div className="card-body">
