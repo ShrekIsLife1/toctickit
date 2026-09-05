@@ -23,4 +23,73 @@ model Category {
   id        Int      @id @default(autoincrement())
   name      String   @unique
   createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+model RequesterUser {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+model RelatedSystem {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  tickets   Ticket[]
+}
+
+enum RequestedPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TicketStatus {
+  NEW
+}
+
+model Ticket {
+  id                Int               @id @default(autoincrement())
+  ticketNumber      String            @unique
+  requesterId       Int
+  requester         RequesterUser     @relation(fields: [requesterId], references: [id])
+  categoryId        Int
+  category          Category          @relation(fields: [categoryId], references: [id])
+  relatedSystemId   Int
+  relatedSystem     RelatedSystem     @relation(fields: [relatedSystemId], references: [id])
+  summary           String
+  description       String
+  requestedPriority RequestedPriority
+  itPriority        RequestedPriority?
+  currentStatus     TicketStatus      @default(NEW)
+  ticketOwnerId     Int?
+  resolutionSummary String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  attachments       Attachment[]
+  @@index([requesterId])
+  @@index([currentStatus])
+  @@index([categoryId])
+}
+
+model Attachment {
+  id               Int       @id @default(autoincrement())
+  ticketId         Int
+  ticket           Ticket    @relation(fields: [ticketId], references: [id])
+  originalFilename String
+  storedFilename   String    @unique
+  mimeType         String
+  sizeBytes        Int
+  isRemoved        Boolean   @default(false)
+  removedAt        DateTime?
+  removalReason    String?
+  uploadedAt       DateTime  @default(now())
+
+  @@index([ticketId])
 }
