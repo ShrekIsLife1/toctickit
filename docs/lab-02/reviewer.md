@@ -1,4 +1,4 @@
-# Lab 1 — Peer Review Record  (fill this in)
+# Lab 2 — Peer Review Record 
 
 **Author:** <Baptiste Carré> — <69540460014> — GitHub: @<ShrekIsLife>
 **Peer reviewer:** <Clément Delrieu> — <69540460016> — GitHub: @<ClemDelGh>
