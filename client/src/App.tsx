@@ -8,7 +8,11 @@ import MyTickets from "./features/tickets/MyTickets";
 import RequesterTicketDetail from "./features/tickets/RequesterTicketDetail";
 
 function RequireRequester({ children }: { children: React.ReactNode }) {
-  const { requester } = useRequester();
+  const { requester, isInitializing } = useRequester();
+
+  if (isInitializing) {
+    return null; // or a spinner
+  }
   if (!requester) {
     return <Navigate to="/select-requester" replace />;
   }

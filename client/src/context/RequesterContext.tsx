@@ -10,6 +10,7 @@ interface RequesterContextValue {
   requester: Requester | null;
   setRequester: (r: Requester) => void;
   clearRequester: () => void;
+  isInitializing: boolean;
 }
 
 const STORAGE_KEY = "toktickit.selectedRequester";
@@ -18,6 +19,7 @@ const RequesterContext = createContext<RequesterContextValue | undefined>(undefi
 
 export function RequesterProvider({ children }: { children: ReactNode }) {
   const [requester, setRequesterState] = useState<Requester | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
     const stored = sessionStorage.getItem(STORAGE_KEY);
@@ -28,6 +30,7 @@ export function RequesterProvider({ children }: { children: ReactNode }) {
         sessionStorage.removeItem(STORAGE_KEY);
       }
     }
+    setIsInitializing(false);
   }, []);
 
   function setRequester(r: Requester) {
@@ -41,7 +44,7 @@ export function RequesterProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <RequesterContext.Provider value={{ requester, setRequester, clearRequester }}>
+    <RequesterContext.Provider value={{ requester, setRequester, clearRequester, isInitializing }}>
       {children}
     </RequesterContext.Provider>
   );

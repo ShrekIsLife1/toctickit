@@ -1,0 +1,26 @@
+{
+  "name": "toctickit",
+  "version": "1.0.0",
+  "description": "## Description TokTickIT est une application de gestion de tickets IT. Ce projet contient un frontend React et un backend Express avec PostgreSQL et Prisma.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ShrekIsLife1/toctickit.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ShrekIsLife1/toctickit/issues"
+  },
+  "homepage": "https://github.com/ShrekIsLife1/toctickit#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}
