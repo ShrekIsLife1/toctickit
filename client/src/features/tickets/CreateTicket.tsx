@@ -106,11 +106,11 @@ export default function CreateTicket() {
             Your official Ticket Number is <strong>{createdTicketNumber}</strong>.
           </p>
         </div>
-        <button className="btn btn-outline-success me-2" onClick={() => navigate("/my-tickets")}>
+        <button className="btn btn-zen-secondary me-2" onClick={() => navigate("/my-tickets")}>
           View My Tickets
         </button>
         <button
-          className="btn btn-success"
+          className="btn btn-zen-primary"
           onClick={() => {
             setSummary("");
             setDescription("");
@@ -251,7 +251,7 @@ export default function CreateTicket() {
 
           <button
             type="submit"
-            className="btn btn-success"
+            className="btn btn-zen-primary"
             disabled={submitState === "submitting"}
           >
             {submitState === "submitting" ? "Submitting…" : "Submit"}

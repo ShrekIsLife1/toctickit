@@ -2,14 +2,13 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchTickets, fetchCategories, Category, TicketListItem } from "../../api";
 import { useRequester } from "../../context/RequesterContext";
-import RequesterBadge from "../requester/RequesterBadge";
 
 type LoadState = "loading" | "success" | "error";
 
 const PRIORITY_BADGE: Record<string, string> = {
-  LOW: "bg-success-subtle text-success",
-  MEDIUM: "bg-warning-subtle text-warning-emphasis",
-  HIGH: "bg-danger-subtle text-danger",
+  LOW: "badge-zen-low",
+  MEDIUM: "badge-zen-medium",
+  HIGH: "badge-zen-high",
 };
 
 export default function MyTickets() {
@@ -93,9 +92,8 @@ export default function MyTickets() {
       <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
         <div>
           <h1 className="h3 mb-1">My Tickets</h1>
-          <RequesterBadge />
         </div>
-        <Link to="/create-ticket" className="btn btn-success">
+        <Link to="/create-ticket" className="btn btn-zen-primary">
           + Create Ticket
         </Link>
       </div>
@@ -160,7 +158,7 @@ export default function MyTickets() {
         </div>
         {hasActiveFilters && (
           <div className="col-6 col-md-2">
-            <button className="btn btn-outline-secondary w-100" onClick={clearFilters}>
+            <button className="btn btn-zen-secondary w-100" onClick={clearFilters}>
               Clear Filters
             </button>
           </div>
@@ -178,7 +176,7 @@ export default function MyTickets() {
       {loadState === "success" && tickets.length === 0 && !hasActiveFilters && (
         <div className="alert alert-secondary text-center py-5">
           <p className="mb-3">You haven't created any tickets yet.</p>
-          <Link to="/create-ticket" className="btn btn-success">
+          <Link to="/create-ticket" className="btn btn-zen-primary">
             Create Ticket
           </Link>
         </div>
@@ -187,7 +185,7 @@ export default function MyTickets() {
       {loadState === "success" && tickets.length === 0 && hasActiveFilters && (
         <div className="alert alert-secondary text-center py-5">
           <p className="mb-3">No tickets match your filters.</p>
-          <button className="btn btn-outline-secondary" onClick={clearFilters}>
+          <button className="btn btn-zen-secondary" onClick={clearFilters}>
             Clear Filters
           </button>
         </div>
@@ -260,7 +258,7 @@ export default function MyTickets() {
             </span>
             <div>
               <button
-                className="btn btn-outline-secondary btn-sm me-2"
+                className="btn btn-zen-secondary btn-sm me-2"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => p - 1)}
               >
@@ -270,7 +268,7 @@ export default function MyTickets() {
                 Page {page} of {totalPages}
               </span>
               <button
-                className="btn btn-outline-secondary btn-sm ms-2"
+                className="btn btn-zen-secondary btn-sm ms-2"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => p + 1)}
               >

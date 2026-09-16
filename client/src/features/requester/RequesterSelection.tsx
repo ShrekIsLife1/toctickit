@@ -94,7 +94,7 @@ export default function RequesterSelection() {
             </div>
 
             <button
-              className="btn btn-success w-100 mt-2"
+              className="btn btn-zen-primary w-100 mt-2"
               onClick={handleContinue}
               disabled={selectedId === ""}
             >

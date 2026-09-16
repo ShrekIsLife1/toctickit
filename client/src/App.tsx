@@ -6,6 +6,7 @@ import RequesterBadge from "./features/requester/RequesterBadge";
 import CreateTicket from "./features/tickets/CreateTicket";
 import MyTickets from "./features/tickets/MyTickets";
 import RequesterTicketDetail from "./features/tickets/RequesterTicketDetail";
+import AppShell from "./components/AppShell";
 
 function RequireRequester({ children }: { children: React.ReactNode }) {
   const { requester, isInitializing } = useRequester();
@@ -27,30 +28,36 @@ export default function App() {
           <Route path="/system-check" element={<SystemCheck />} />
           <Route path="/select-requester" element={<RequesterSelection />} />
           <Route
-            path="/my-tickets"
-            element={
-              <RequireRequester>
-                <MyTickets />
-              </RequireRequester>
-            }
-          />
-          <Route path="/" element={<Navigate to="/select-requester" replace />} />
-          <Route
-            path="/create-ticket"
-            element={
-              <RequireRequester>
-              <CreateTicket />
-              </RequireRequester>
-            }
-          />
-          <Route
-            path="/tickets/:id"
-            element={
-              <RequireRequester>
-                <RequesterTicketDetail />
-              </RequireRequester>
-            }
-          />
+	  path="/my-tickets"
+	  element={
+	    <RequireRequester>
+	      <AppShell>
+		<MyTickets />
+	      </AppShell>
+	    </RequireRequester>
+	  }
+	/>
+	<Route
+	  path="/create-ticket"
+	  element={
+	    <RequireRequester>
+	      <AppShell>
+		<CreateTicket />
+	      </AppShell>
+	    </RequireRequester>
+	  }
+	/>
+	<Route
+	  path="/tickets/:id"
+	  element={
+	    <RequireRequester>
+	      <AppShell>
+		<RequesterTicketDetail />
+	      </AppShell>
+	    </RequireRequester>
+	  }
+	/>
+	<Route path="/" element={<Navigate to="/select-requester" replace />} />
         </Routes>
       </BrowserRouter>
     </RequesterProvider>
