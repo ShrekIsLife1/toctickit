@@ -137,7 +137,7 @@ export default function AttachmentSection({
                     </div>
                     <div className="d-flex gap-2">
                       <button
-                        className="btn btn-outline-success btn-sm"
+                        className="btn btn-zen-secondary btn-sm"
                         onClick={() => handleDownload(a)}
                       >
                         Download
@@ -170,7 +170,7 @@ export default function AttachmentSection({
                         </div>
                       ) : (
                         <button
-                          className="btn btn-outline-danger btn-sm"
+                          className="btn btn-zen-destructive btn-sm"
                           onClick={() => setRemovingId(a.id)}
                         >
                           Remove

@@ -1,0 +1,97 @@
+:root {
+  --color-primary: #006b3c;
+  --color-secondary: #0b7a46;
+  --color-pale-green: #eaf6ef;
+  --color-bg: #f5f7f6;
+  --color-surface: #ffffff;
+  --color-border: #d8e2dc;
+  --color-text: #1e2b24;
+  --color-text-muted: #5b6b62;
+  --color-error: #b30000;
+  --color-error-bg: #fdf0f0;
+  --color-warning: #b5770a;
+  --color-warning-bg: #fff4e0;
+  --color-success: #0b7a46;
+  --color-readonly-bg: #f1f0e8;
+  --color-disabled-bg: #e7ebe8;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Application shell header */
+.app-header {
+  background-color: var(--color-primary);
+  color: white;
+}
+.app-header a,
+.app-header .app-nav-link {
+  color: white;
+  text-decoration: none;
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+}
+.app-header .app-nav-link.active {
+  font-weight: 700;
+  border-bottom: 2px solid var(--color-pale-green);
+}
+.app-header .app-nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Buttons */
+.btn-zen-primary {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+.btn-zen-primary:hover,
+.btn-zen-primary:focus {
+  background-color: var(--color-secondary);
+  border-color: var(--color-secondary);
+  color: white;
+}
+.btn-zen-secondary {
+  background-color: white;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.btn-zen-secondary:hover {
+  background-color: var(--color-pale-green);
+}
+.btn-zen-destructive {
+  background-color: white;
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+.btn-zen-destructive:hover {
+  background-color: var(--color-error-bg);
+}
+
+/* Badges */
+.badge-zen-low {
+  background-color: var(--color-pale-green);
+  color: var(--color-secondary);
+}
+.badge-zen-medium {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+.badge-zen-high {
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+}
+.badge-zen-status {
+  background-color: #eaf1fb;
+  color: #1d4e89;
+}
+
+/* Read-only field (already used ad hoc, now token-based) */
+.field-readonly {
+  background-color: var(--color-readonly-bg);
+  border: 1px dashed var(--color-border);
+  border-radius: 4px;
+  padding: 0.5rem;
+}
