@@ -54,6 +54,7 @@ export interface Ticket {
   resolutionSummary: string | null;
   createdAt: string;
   updatedAt: string;
+  problemAppearsResolved: boolean;
 }
 
 export class ApiFieldError extends Error {
@@ -221,6 +222,57 @@ export async function removeAttachment(attachmentId: number, reason: string): Pr
   const body = await res.json();
   if (!res.ok) {
     throw new Error(body?.error?.message ?? "Unable to remove attachment");
+  }
+  return body;
+}
+
+export interface Comment {
+  id: number;
+  ticketId: number;
+  authorId: number;
+  authorName: string;
+  authorRole: string;
+  content: string;
+  visibility: "PUBLIC" | "INTERNAL";
+  createdAt: string;
+}
+
+export async function fetchComments(ticketId: number): Promise<Comment[]> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/comments`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new Error("Unable to load comments");
+  }
+  return res.json();
+}
+
+export async function postComment(
+  ticketId: number,
+  content: string,
+  visibility: "PUBLIC" | "INTERNAL" = "PUBLIC"
+): Promise<Comment> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/comments`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content, visibility }),
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    throw new Error(body?.error?.message ?? "Unable to post comment");
+  }
+  return body;
+}
+
+export async function markProblemResolved(ticketId: number): Promise<{ id: number; problemAppearsResolved: boolean }> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/resolve-indication`, {
+    method: "POST",
+    credentials: "include",
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    throw new Error(body?.error?.message ?? "Unable to update ticket");
   }
   return body;
 }
