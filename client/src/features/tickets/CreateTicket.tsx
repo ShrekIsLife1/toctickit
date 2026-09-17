@@ -77,7 +77,7 @@ export default function CreateTicket() {
     setSubmitError("");
 
     try {
-      const ticket = await createTicket(user.id, {
+      const ticket = await createTicket({
         categoryId: categoryId as number,
         relatedSystemId: relatedSystemId as number,
         summary,

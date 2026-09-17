@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { getPrisma } from "./prisma.js";
 import { formatTicketNumber } from "./ticketNumber.js";
@@ -24,6 +24,10 @@ app.use(
     credentials: true,
   })
 );
+app.use((req, _res, next) => {
+  console.log(`${req.method} ${req.path}`);
+  next();
+});
 app.use(express.json());
 app.use(
   session({
@@ -1040,4 +1044,6 @@ app.post("/api/admin/users/:id/reset-password", requireAuth, async (req: Request
     res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to reset password" } });
   }
 });
+
+
 export default app;

@@ -67,29 +67,29 @@ export default function UserManagement() {
   }
 
   async function handleSave() {
-    if (!form.name.trim() || !form.email.trim()) {
-        setFormError("Name and email are required.");
-        return;
+  if (!form.name.trim() || !form.email.trim()) {
+    setFormError("Name and email are required.");
+    return;
+  }
+  setSaving(true);
+  setFormError("");
+  try {
+    if (formMode === "create") {
+      const created = await createAdminUser(form);
+      setSuccessMessage(`User created. Initial password: ${created.initialPassword}`);
+      await load();
+    } else if (editingUser) {
+      await updateAdminUser(editingUser.id, form);
+      setSuccessMessage("User updated.");
+      await load();
+      // Panel stays open so the Administrator can see the confirmation
+      // message, consistent with the create flow.
     }
-    setSaving(true);
-    setFormError("");
-    try {
-        if (formMode === "create") {
-        const created = await createAdminUser(form);
-        setSuccessMessage(`User created. Initial password: ${created.initialPassword}`);
-        await load();
-        // Keep the panel open so the Administrator can read/relay the initial password.
-        } else if (editingUser) {
-        await updateAdminUser(editingUser.id, form);
-        setSuccessMessage("User updated.");
-        await load();
-        setFormMode("closed");
-        }
-    } catch (err) {
-        setFormError(err instanceof Error ? err.message : "Unable to save user");
-    } finally {
-        setSaving(false);
-    }
+  } catch (err) {
+    setFormError(err instanceof Error ? err.message : "Unable to save user");
+  } finally {
+    setSaving(false);
+  }
 }
 
   async function handleDeactivate() {
