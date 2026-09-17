@@ -647,4 +647,166 @@ app.post("/api/auth/change-password", requireAuth, async (req: Request, res: Res
   }
 });
 
+app.get("/api/staff/tickets", requireAuth, async (req: Request, res: Response) => {
+  const currentUser = (req as Request & { currentUser: { role: string } }).currentUser;
+
+  if (!["IT_STAFF", "ADMINISTRATOR"].includes(currentUser.role)) {
+    return res.status(403).json({ error: { code: "FORBIDDEN", message: "Not permitted" } });
+  }
+
+  const { page, pageSize } = parsePagination(req.query as Record<string, unknown>);
+  const { sortBy, sortDir } = parseSort(req.query as Record<string, unknown>);
+
+  const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+  const categoryId = req.query.categoryId ? Number(req.query.categoryId) : undefined;
+  const requestedPriority =
+    typeof req.query.requestedPriority === "string" ? req.query.requestedPriority : undefined;
+  const itPriority = typeof req.query.itPriority === "string" ? req.query.itPriority : undefined;
+  const currentStatus =
+    typeof req.query.currentStatus === "string" ? req.query.currentStatus : undefined;
+  const ticketOwnerIdRaw = req.query.ticketOwnerId;
+
+  const where: Record<string, unknown> = {};
+
+  if (search) {
+    where.OR = [
+      { ticketNumber: { contains: search, mode: "insensitive" } },
+      { summary: { contains: search, mode: "insensitive" } },
+    ];
+  }
+  if (categoryId && Number.isInteger(categoryId)) where.categoryId = categoryId;
+  if (requestedPriority) where.requestedPriority = requestedPriority;
+  if (itPriority) where.itPriority = itPriority;
+  if (currentStatus) where.currentStatus = currentStatus;
+  if (ticketOwnerIdRaw === "unassigned") {
+    where.ticketOwnerId = null;
+  } else if (ticketOwnerIdRaw && Number.isInteger(Number(ticketOwnerIdRaw))) {
+    where.ticketOwnerId = Number(ticketOwnerIdRaw);
+  }
+
+  try {
+    const prisma = getPrisma();
+
+    const [rows, total] = await Promise.all([
+      prisma.ticket.findMany({
+        where,
+        orderBy: { [sortBy]: sortDir },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          ticketNumber: true,
+          summary: true,
+          categoryId: true,
+          requestedPriority: true,
+          itPriority: true,
+          currentStatus: true,
+          createdAt: true,
+          updatedAt: true,
+          ticketOwnerId: true,
+          ticketOwner: { select: { name: true } },
+        },
+      }),
+      prisma.ticket.count({ where }),
+    ]);
+
+    const data = rows.map((r) => ({
+      id: r.id,
+      ticketNumber: r.ticketNumber,
+      summary: r.summary,
+      categoryId: r.categoryId,
+      requestedPriority: r.requestedPriority,
+      itPriority: r.itPriority,
+      currentStatus: r.currentStatus,
+      ticketOwnerId: r.ticketOwnerId,
+      ticketOwnerName: r.ticketOwner?.name ?? null,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    }));
+
+    res.status(200).json({
+      data,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to retrieve tickets" } });
+  }
+});
+
+app.post("/api/staff/tickets/:id/claim", requireAuth, async (req: Request, res: Response) => {
+  const currentUser = (req as Request & { currentUser: { id: number; role: string } }).currentUser;
+  const ticketId = Number(req.params.id);
+  const { ticketOwnerId } = req.body;
+
+  if (!["IT_STAFF", "ADMINISTRATOR"].includes(currentUser.role)) {
+    return res.status(403).json({ error: { code: "FORBIDDEN", message: "Not permitted" } });
+  }
+
+  try {
+    const prisma = getPrisma();
+
+    const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+    if (!ticket) {
+      return res.status(404).json({ error: { code: "NOT_FOUND", message: "Ticket not found" } });
+    }
+
+    const owner = await prisma.user.findFirst({
+      where: { id: ticketOwnerId, isActive: true, role: { in: ["IT_STAFF", "ADMINISTRATOR"] } },
+    });
+    if (!owner) {
+      return res.status(400).json({
+        error: { code: "VALIDATION_ERROR", message: "ticketOwnerId must reference an active IT Staff or Administrator" },
+      });
+    }
+
+    const updated = await prisma.ticket.update({
+      where: { id: ticketId },
+      data: { ticketOwnerId: owner.id },
+    });
+
+    res.status(200).json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to claim ticket" } });
+  }
+});
+
+app.get("/api/staff/tickets/:id", requireAuth, async (req: Request, res: Response) => {
+  const currentUser = (req as Request & { currentUser: { role: string } }).currentUser;
+  const ticketId = Number(req.params.id);
+
+  if (!["IT_STAFF", "ADMINISTRATOR"].includes(currentUser.role)) {
+    return res.status(403).json({ error: { code: "FORBIDDEN", message: "Not permitted" } });
+  }
+  if (!Number.isInteger(ticketId)) {
+    return res.status(404).json({ error: { code: "NOT_FOUND", message: "Ticket not found" } });
+  }
+
+  try {
+    const ticket = await getPrisma().ticket.findUnique({
+      where: { id: ticketId },
+      include: { ticketOwner: { select: { name: true } }, requester: { select: { name: true } } },
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ error: { code: "NOT_FOUND", message: "Ticket not found" } });
+    }
+
+    res.status(200).json({
+      ...ticket,
+      ticketOwnerName: ticket.ticketOwner?.name ?? null,
+      requesterName: ticket.requester?.name ?? null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to retrieve ticket" } });
+  }
+});
+
 export default app;
