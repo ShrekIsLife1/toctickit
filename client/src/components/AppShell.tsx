@@ -33,6 +33,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
               </Link>
             </>
           )}
+          {user?.role === "IT_STAFF" && (
+            <Link to="/staff/queue" className={`app-nav-link ${isActive("/staff/queue") ? "active" : ""}`}>
+              My Queue
+            </Link>
+          )}
         </div>
         <div className="d-flex align-items-center gap-2">
           <span className="small text-white-50">

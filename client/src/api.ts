@@ -276,3 +276,66 @@ export async function markProblemResolved(ticketId: number): Promise<{ id: numbe
   }
   return body;
 }
+
+export interface StaffTicketListItem {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  categoryId: number;
+  requestedPriority: string;
+  itPriority: string | null;
+  currentStatus: string;
+  ticketOwnerId: number | null;
+  ticketOwnerName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StaffTicketListParams {
+  search?: string;
+  categoryId?: number;
+  requestedPriority?: string;
+  itPriority?: string;
+  currentStatus?: string;
+  ticketOwnerId?: number | "unassigned";
+  sortBy?: "createdAt" | "updatedAt";
+  sortDir?: "asc" | "desc";
+  page?: number;
+}
+
+export async function fetchStaffTickets(
+  params: StaffTicketListParams = {}
+): Promise<TicketListResponse & { data: StaffTicketListItem[] }> {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.categoryId) query.set("categoryId", String(params.categoryId));
+  if (params.requestedPriority) query.set("requestedPriority", params.requestedPriority);
+  if (params.itPriority) query.set("itPriority", params.itPriority);
+  if (params.currentStatus) query.set("currentStatus", params.currentStatus);
+  if (params.ticketOwnerId) query.set("ticketOwnerId", String(params.ticketOwnerId));
+  if (params.sortBy) query.set("sortBy", params.sortBy);
+  if (params.sortDir) query.set("sortDir", params.sortDir);
+  if (params.page) query.set("page", String(params.page));
+
+  const res = await fetch(`${API_URL}/api/staff/tickets?${query.toString()}`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new Error("Unable to load tickets");
+  }
+  return res.json();
+}
+
+export async function claimTicket(ticketId: number, ticketOwnerId: number) {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/claim`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ticketOwnerId }),
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    throw new Error(body?.error?.message ?? "Unable to claim ticket");
+  }
+  return body;
+}

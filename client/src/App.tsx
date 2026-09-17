@@ -7,6 +7,7 @@ import CreateTicket from "./features/tickets/CreateTicket";
 import MyTickets from "./features/tickets/MyTickets";
 import RequesterTicketDetail from "./features/tickets/RequesterTicketDetail";
 import AppShell from "./components/AppShell";
+import StaffTicketQueue from "./features/staff/StaffTicketQueue";
 
 function RequireAuth({
   children,
@@ -84,6 +85,16 @@ export default function App() {
           />
 
           <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route
+            path="/staff/queue"
+            element={
+              <RequireAuth roles={["IT_STAFF", "ADMINISTRATOR"]}>
+                <AppShell>
+                  <StaffTicketQueue />
+                </AppShell>
+              </RequireAuth>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
