@@ -9,6 +9,12 @@ import path from "path";
 import session from "express-session";
 import { hashPassword, verifyPassword, requireAuth } from "./auth.js";
 import { isValidTransition } from "./statusTransitions.js";
+import { isSelfDeactivation, wouldRemoveLastActiveAdmin } from "./adminUserRules.js";
+import crypto from "crypto";
+
+function generateInitialPassword(): string {
+  return `Temp-${crypto.randomBytes(4).toString("hex")}!1`;
+}
 
 export const app = express();
 
@@ -852,6 +858,186 @@ app.patch("/api/staff/tickets/:id", requireAuth, async (req: Request, res: Respo
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to update ticket" } });
+  }
+});
+
+app.get("/api/admin/users", requireAuth, async (req: Request, res: Response) => {
+  const currentUser = (req as Request & { currentUser: { role: string } }).currentUser;
+  if (currentUser.role !== "ADMINISTRATOR") {
+    return res.status(403).json({ error: { code: "FORBIDDEN", message: "Not permitted" } });
+  }
+
+  const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+  const role = typeof req.query.role === "string" ? req.query.role : undefined;
+
+  const where: Record<string, unknown> = {};
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: "insensitive" } },
+      { email: { contains: search, mode: "insensitive" } },
+    ];
+  }
+  if (role) where.role = role;
+
+  try {
+    const users = await getPrisma().user.findMany({
+      where,
+      orderBy: { id: "asc" },
+      select: { id: true, name: true, email: true, role: true, isActive: true },
+    });
+    res.status(200).json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to retrieve users" } });
+  }
+});
+
+app.post("/api/admin/users", requireAuth, async (req: Request, res: Response) => {
+  const currentUser = (req as Request & { currentUser: { role: string } }).currentUser;
+  if (currentUser.role !== "ADMINISTRATOR") {
+    return res.status(403).json({ error: { code: "FORBIDDEN", message: "Not permitted" } });
+  }
+
+  const { name, email, role, isActive } = req.body;
+
+  if (typeof name !== "string" || !name.trim()) {
+    return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Name is required" } });
+  }
+  if (typeof email !== "string" || !email.trim()) {
+    return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Email is required" } });
+  }
+  if (!["REQUESTER", "IT_STAFF", "ADMINISTRATOR"].includes(role)) {
+    return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Invalid role" } });
+  }
+
+  try {
+    const prisma = getPrisma();
+
+    const existing = await prisma.user.findFirst({
+      where: { email: { equals: email.trim(), mode: "insensitive" } },
+    });
+    if (existing) {
+      return res.status(409).json({ error: { code: "DUPLICATE_EMAIL", message: "Email already in use" } });
+    }
+
+    const initialPassword = generateInitialPassword();
+    const passwordHash = await hashPassword(initialPassword);
+
+    const user = await prisma.user.create({
+      data: {
+        name: name.trim(),
+        email: email.trim(),
+        role,
+        isActive: isActive ?? true,
+        passwordHash,
+        mustChangePassword: true,
+      },
+    });
+
+    res.status(201).json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      mustChangePassword: user.mustChangePassword,
+      initialPassword, // shown once to the Administrator; not stored anywhere else in plaintext
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to create user" } });
+  }
+});
+app.patch("/api/admin/users/:id", requireAuth, async (req: Request, res: Response) => {
+  const currentUser = (req as Request & { currentUser: { id: number; role: string } }).currentUser;
+  const targetId = Number(req.params.id);
+  const { name, email, role, isActive } = req.body;
+
+  if (currentUser.role !== "ADMINISTRATOR") {
+    return res.status(403).json({ error: { code: "FORBIDDEN", message: "Not permitted" } });
+  }
+
+  if (isSelfDeactivation(currentUser.id, targetId, isActive)) {
+    return res.status(409).json({
+      error: { code: "SELF_DEACTIVATION_FORBIDDEN", message: "You cannot deactivate your own account" },
+    });
+  }
+
+  try {
+    const prisma = getPrisma();
+
+    const target = await prisma.user.findUnique({ where: { id: targetId } });
+    if (!target) {
+      return res.status(404).json({ error: { code: "NOT_FOUND", message: "User not found" } });
+    }
+
+    if (email !== undefined) {
+      const duplicate = await prisma.user.findFirst({
+        where: { email: { equals: email.trim(), mode: "insensitive" }, NOT: { id: targetId } },
+      });
+      if (duplicate) {
+        return res.status(409).json({ error: { code: "DUPLICATE_EMAIL", message: "Email already in use" } });
+      }
+    }
+
+    const targetIsCurrentlyActiveAdmin = target.role === "ADMINISTRATOR" && target.isActive;
+    if (targetIsCurrentlyActiveAdmin) {
+      const activeAdminCount = await prisma.user.count({ where: { role: "ADMINISTRATOR", isActive: true } });
+      if (wouldRemoveLastActiveAdmin(targetId, true, activeAdminCount, { isActive, role })) {
+        return res.status(409).json({
+          error: { code: "LAST_ADMINISTRATOR_PROTECTED", message: "At least one active Administrator must remain" },
+        });
+      }
+    }
+
+    const data: Record<string, unknown> = {};
+    if (name !== undefined) data.name = name.trim();
+    if (email !== undefined) data.email = email.trim();
+    if (role !== undefined) data.role = role;
+    if (isActive !== undefined) data.isActive = isActive;
+
+    const updated = await prisma.user.update({ where: { id: targetId }, data });
+
+    res.status(200).json({
+      id: updated.id,
+      name: updated.name,
+      email: updated.email,
+      role: updated.role,
+      isActive: updated.isActive,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to update user" } });
+  }
+});
+
+app.post("/api/admin/users/:id/reset-password", requireAuth, async (req: Request, res: Response) => {
+  const currentUser = (req as Request & { currentUser: { role: string } }).currentUser;
+  const targetId = Number(req.params.id);
+
+  if (currentUser.role !== "ADMINISTRATOR") {
+    return res.status(403).json({ error: { code: "FORBIDDEN", message: "Not permitted" } });
+  }
+
+  try {
+    const prisma = getPrisma();
+    const target = await prisma.user.findUnique({ where: { id: targetId } });
+    if (!target) {
+      return res.status(404).json({ error: { code: "NOT_FOUND", message: "User not found" } });
+    }
+
+    const newPassword = generateInitialPassword();
+    const passwordHash = await hashPassword(newPassword);
+
+    await prisma.user.update({
+      where: { id: targetId },
+      data: { passwordHash, mustChangePassword: true },
+    });
+
+    res.status(200).json({ id: targetId, mustChangePassword: true, newPassword });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to reset password" } });
   }
 });
 export default app;
