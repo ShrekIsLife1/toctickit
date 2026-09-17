@@ -1,65 +1,91 @@
-import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
-import { RequesterProvider, useRequester } from "./context/RequesterContext";
-import RequesterSelection from "./features/requester/RequesterSelection";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import Login from "./features/auth/Login";
+import ChangePassword from "./features/auth/ChangePassword";
 import SystemCheck from "./features/system/SystemCheck";
-import RequesterBadge from "./features/requester/RequesterBadge";
 import CreateTicket from "./features/tickets/CreateTicket";
 import MyTickets from "./features/tickets/MyTickets";
 import RequesterTicketDetail from "./features/tickets/RequesterTicketDetail";
 import AppShell from "./components/AppShell";
 
-function RequireRequester({ children }: { children: React.ReactNode }) {
-  const { requester, isInitializing } = useRequester();
+function RequireAuth({
+  children,
+  roles,
+}: {
+  children: React.ReactNode;
+  roles?: Array<"REQUESTER" | "IT_STAFF" | "ADMINISTRATOR">;
+}) {
+  const { user, isInitializing } = useAuth();
 
   if (isInitializing) {
-    return null; // or a spinner
+    return null;
   }
-  if (!requester) {
-    return <Navigate to="/select-requester" replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (user.mustChangePassword) {
+    return <Navigate to="/change-password" replace />;
+  }
+  if (roles && !roles.includes(user.role)) {
+    return <Navigate to="/forbidden" replace />;
   }
   return <>{children}</>;
 }
 
+function Forbidden() {
+  return (
+    <div className="container py-5">
+      <div className="alert alert-warning">
+        You do not have permission to view this page.
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   return (
-    <RequesterProvider>
+    <AuthProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/system-check" element={<SystemCheck />} />
-          <Route path="/select-requester" element={<RequesterSelection />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/change-password" element={<ChangePassword />} />
+          <Route path="/forbidden" element={<Forbidden />} />
+
           <Route
-	  path="/my-tickets"
-	  element={
-	    <RequireRequester>
-	      <AppShell>
-		<MyTickets />
-	      </AppShell>
-	    </RequireRequester>
-	  }
-	/>
-	<Route
-	  path="/create-ticket"
-	  element={
-	    <RequireRequester>
-	      <AppShell>
-		<CreateTicket />
-	      </AppShell>
-	    </RequireRequester>
-	  }
-	/>
-	<Route
-	  path="/tickets/:id"
-	  element={
-	    <RequireRequester>
-	      <AppShell>
-		<RequesterTicketDetail />
-	      </AppShell>
-	    </RequireRequester>
-	  }
-	/>
-	<Route path="/" element={<Navigate to="/select-requester" replace />} />
+            path="/my-tickets"
+            element={
+              <RequireAuth roles={["REQUESTER"]}>
+                <AppShell>
+                  <MyTickets />
+                </AppShell>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/create-ticket"
+            element={
+              <RequireAuth roles={["REQUESTER"]}>
+                <AppShell>
+                  <CreateTicket />
+                </AppShell>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/tickets/:id"
+            element={
+              <RequireAuth roles={["REQUESTER"]}>
+                <AppShell>
+                  <RequesterTicketDetail />
+                </AppShell>
+              </RequireAuth>
+            }
+          />
+
+          <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
-    </RequesterProvider>
+    </AuthProvider>
   );
 }

@@ -6,6 +6,8 @@ import { validateCreateTicket } from "./validation/ticketValidation.js";
 import { parsePagination, parseSort } from "./queryParsing.js";
 import { upload } from "./upload.js";
 import path from "path";
+import session from "express-session";
+import { hashPassword, verifyPassword, requireAuth } from "./auth.js";
 
 // getPrisma() is your lazy database handle. Call it INSIDE a route when you
 // need the DB (Issue 4). It is intentionally unused until then.
@@ -14,9 +16,23 @@ import path from "path";
 // Supertest can import `app` without opening a port. Do not merge these files.
 export const app = express();
 
-app.use(cors());          // already wired: lets the Vite dev server call this API
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true,
+}));          // already wired: lets the Vite dev server call this API
 app.use(express.json());
-
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "dev-only-secret-change-in-real-deployment",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 8 * 60 * 60 * 1000, // 8 hours
+    },
+  })
+);
 // ---------------------------------------------------------------------------
 // Issue 2 — API health check
 // Make the test in tests/lab-01/health.test.ts pass.
@@ -29,7 +45,7 @@ app.get("/api/health", (_req: Request, res: Response) => {
 
 app.get("/api/requesters", async (_req: Request, res: Response) => {
   try {
-    const requesters = await getPrisma().requesterUser.findMany({
+    const requesters = await getPrisma().user.findMany({
       where: { isActive: true },
       orderBy: { id: "asc" },
       select: { id: true, name: true, email: true },
@@ -78,7 +94,7 @@ app.post("/api/tickets", async (req: Request, res: Response) => {
     const prisma = getPrisma();
 
     const [requester, category, relatedSystem] = await Promise.all([
-      prisma.requesterUser.findFirst({ where: { id: requesterId, isActive: true } }),
+      prisma.user.findFirst({ where: { id: requesterId, isActive: true } }),
       prisma.category.findUnique({ where: { id: categoryId } }),
       prisma.relatedSystem.findFirst({ where: { id: relatedSystemId, isActive: true } }),
     ]);
@@ -343,6 +359,103 @@ app.post(
     }
   }
 );
+
+app.post("/api/auth/login", async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  if (typeof email !== "string" || typeof password !== "string" || !email || !password) {
+    return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Email and password are required" } });
+  }
+
+  try {
+    const prisma = getPrisma();
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" }, isActive: true },
+    });
+
+    const genericError = () =>
+      res.status(401).json({ error: { code: "INVALID_CREDENTIALS", message: "Invalid email or password" } });
+
+    if (!user) return genericError();
+
+    const valid = await verifyPassword(password, user.passwordHash);
+    if (!valid) return genericError();
+
+    req.session.userId = user.id;
+
+    res.status(200).json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      mustChangePassword: user.mustChangePassword,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to log in" } });
+  }
+});
+
+app.post("/api/auth/logout", (req: Request, res: Response) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to log out" } });
+    }
+    res.clearCookie("connect.sid");
+    res.status(200).json({ success: true });
+  });
+});
+
+app.get("/api/auth/me", requireAuth, (req: Request, res: Response) => {
+  const user = (req as Request & { currentUser: { id: number; name: string; email: string; role: string; mustChangePassword: boolean } }).currentUser;
+  res.status(200).json({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    mustChangePassword: user.mustChangePassword,
+  });
+});
+
+app.post("/api/auth/change-password", requireAuth, async (req: Request, res: Response) => {
+  const user = (req as Request & { currentUser: { id: number; passwordHash: string } }).currentUser;
+  const { currentPassword, newPassword } = req.body;
+
+  if (typeof currentPassword !== "string" || typeof newPassword !== "string") {
+    return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Both passwords are required" } });
+  }
+
+  const valid = await verifyPassword(currentPassword, user.passwordHash);
+  if (!valid) {
+    return res.status(400).json({ error: { code: "INVALID_CURRENT_PASSWORD", message: "Current password is incorrect" } });
+  }
+
+  const strong =
+    newPassword.length >= 8 &&
+    /[a-z]/.test(newPassword) &&
+    /[A-Z]/.test(newPassword) &&
+    /[0-9]/.test(newPassword) &&
+    /[^a-zA-Z0-9]/.test(newPassword);
+
+  if (!strong) {
+    return res.status(400).json({
+      error: { code: "WEAK_PASSWORD", message: "Password must be at least 8 characters with upper/lower case, a number, and a special character" },
+    });
+  }
+
+  try {
+    const newHash = await hashPassword(newPassword);
+    await getPrisma().user.update({
+      where: { id: user.id },
+      data: { passwordHash: newHash, mustChangePassword: false },
+    });
+    res.status(200).json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to change password" } });
+  }
+});
 
 app.get("/api/tickets/:id/attachments", async (req: Request, res: Response) => {
   const requesterIdHeader = req.header("X-Requester-Id");

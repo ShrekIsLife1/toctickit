@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { fetchTicket, fetchAttachments, Ticket, Attachment } from "../../api";
-import { useRequester } from "../../context/RequesterContext";
+import { useAuth } from "../../context/AuthContext";
 import AttachmentSection from "./AttachmentSection";
 
 type LoadState = "loading" | "success" | "not-found" | "error";
 
-export default function RequesterTicketDetail() {
+export default function UserTicketDetail() {
   const { id } = useParams<{ id: string }>();
-  const { requester } = useRequester();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -18,17 +18,17 @@ export default function RequesterTicketDetail() {
   const ticketId = Number(id);
 
   const loadAttachments = useCallback(async () => {
-    if (!requester) return;
+    if (!user) return;
     try {
-      const data = await fetchAttachments(requester.id, ticketId);
+      const data = await fetchAttachments(user.id, ticketId);
       setAttachments(data);
     } catch {
       // Non-fatal: the ticket header still loads even if attachments fail here.
     }
-  }, [requester, ticketId]);
+  }, [user, ticketId]);
 
   useEffect(() => {
-    if (!requester || !Number.isInteger(ticketId)) {
+    if (!user || !Number.isInteger(ticketId)) {
       setLoadState("not-found");
       return;
     }
@@ -37,7 +37,7 @@ export default function RequesterTicketDetail() {
     async function load() {
       setLoadState("loading");
       try {
-        const t = await fetchTicket(requester!.id, ticketId);
+        const t = await fetchTicket(user!.id, ticketId);
         if (cancelled) return;
         setTicket(t);
         setLoadState("success");
@@ -52,7 +52,7 @@ export default function RequesterTicketDetail() {
     return () => {
       cancelled = true;
     };
-  }, [requester, ticketId, loadAttachments]);
+  }, [user, ticketId, loadAttachments]);
 
   if (loadState === "loading") {
     return (
@@ -114,7 +114,7 @@ export default function RequesterTicketDetail() {
       </div>
 
       <AttachmentSection
-        requesterId={requester!.id}
+        userId={user!.id}
         ticketId={ticketId}
         attachments={attachments}
         onAttachmentsChanged={loadAttachments}

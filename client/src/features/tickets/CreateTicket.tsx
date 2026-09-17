@@ -8,13 +8,13 @@ import {
   Category,
   RelatedSystem,
 } from "../../api";
-import { useRequester } from "../../context/RequesterContext";
+import { useAuth } from "../../context/AuthContext";
 
 type RefDataState = "loading" | "success" | "error";
 type SubmitState = "idle" | "submitting" | "success" | "error";
 
 export default function CreateTicket() {
-  const { requester } = useRequester();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [refDataState, setRefDataState] = useState<RefDataState>("loading");
@@ -70,14 +70,14 @@ export default function CreateTicket() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!requester) return;
+    if (!user) return;
     if (!validate()) return;
 
     setSubmitState("submitting");
     setSubmitError("");
 
     try {
-      const ticket = await createTicket(requester.id, {
+      const ticket = await createTicket(user.id, {
         categoryId: categoryId as number,
         relatedSystemId: relatedSystemId as number,
         summary,
