@@ -401,3 +401,79 @@ export async function fetchStaffAttachments(ticketId: number): Promise<Attachmen
   }
   return res.json();
 }
+
+export interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+  role: "REQUESTER" | "IT_STAFF" | "ADMINISTRATOR";
+  isActive: boolean;
+}
+
+export async function fetchAdminUsers(params: { search?: string; role?: string } = {}): Promise<AdminUser[]> {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.role) query.set("role", params.role);
+
+  const res = await fetch(`${API_URL}/api/admin/users?${query.toString()}`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new Error("Unable to load users");
+  }
+  return res.json();
+}
+
+export interface CreateUserInput {
+  name: string;
+  email: string;
+  role: "REQUESTER" | "IT_STAFF" | "ADMINISTRATOR";
+  isActive: boolean;
+}
+
+export async function createAdminUser(
+  input: CreateUserInput
+): Promise<AdminUser & { initialPassword: string }> {
+  const res = await fetch(`${API_URL}/api/admin/users`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    throw new Error(body?.error?.message ?? "Unable to create user");
+  }
+  return body;
+}
+
+export async function updateAdminUser(
+  userId: number,
+  updates: Partial<CreateUserInput>
+): Promise<AdminUser> {
+  const res = await fetch(`${API_URL}/api/admin/users/${userId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    throw new Error(body?.error?.message ?? "Unable to update user");
+  }
+  return body;
+}
+
+export async function resetAdminUserPassword(
+  userId: number
+): Promise<{ id: number; mustChangePassword: boolean; newPassword: string }> {
+  const res = await fetch(`${API_URL}/api/admin/users/${userId}/reset-password`, {
+    method: "POST",
+    credentials: "include",
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    throw new Error(body?.error?.message ?? "Unable to reset password");
+  }
+  return body;
+}
