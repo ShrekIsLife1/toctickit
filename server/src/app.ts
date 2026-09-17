@@ -8,6 +8,7 @@ import { upload } from "./upload.js";
 import path from "path";
 import session from "express-session";
 import { hashPassword, verifyPassword, requireAuth } from "./auth.js";
+import { isValidTransition } from "./statusTransitions.js";
 
 export const app = express();
 
@@ -459,13 +460,17 @@ app.post(
 );
 
 app.get("/api/tickets/:id/attachments", requireAuth, async (req: Request, res: Response) => {
-  const currentUser = (req as Request & { currentUser: { id: number } }).currentUser;
-  const requesterId = currentUser.id;
+  const currentUser = (req as Request & { currentUser: { id: number; role: string } }).currentUser;
   const ticketId = Number(req.params.id);
 
   try {
     const prisma = getPrisma();
-    const ticket = await prisma.ticket.findFirst({ where: { id: ticketId, requesterId } });
+
+    const ticket =
+      currentUser.role === "REQUESTER"
+        ? await prisma.ticket.findFirst({ where: { id: ticketId, requesterId: currentUser.id } })
+        : await prisma.ticket.findUnique({ where: { id: ticketId } });
+
     if (!ticket) {
       return res.status(404).json({ error: { code: "NOT_FOUND", message: "Ticket not found" } });
     }
@@ -808,5 +813,45 @@ app.get("/api/staff/tickets/:id", requireAuth, async (req: Request, res: Respons
     res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to retrieve ticket" } });
   }
 });
+app.patch("/api/staff/tickets/:id", requireAuth, async (req: Request, res: Response) => {
+  const currentUser = (req as Request & { currentUser: { role: string } }).currentUser;
+  const ticketId = Number(req.params.id);
+  const { itPriority, currentStatus } = req.body;
 
+  if (!["IT_STAFF", "ADMINISTRATOR"].includes(currentUser.role)) {
+    return res.status(403).json({ error: { code: "FORBIDDEN", message: "Not permitted" } });
+  }
+
+  if (itPriority !== undefined && !["LOW", "MEDIUM", "HIGH"].includes(itPriority)) {
+    return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Invalid itPriority" } });
+  }
+
+  try {
+    const prisma = getPrisma();
+    const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+
+    if (!ticket) {
+      return res.status(404).json({ error: { code: "NOT_FOUND", message: "Ticket not found" } });
+    }
+
+    if (currentStatus !== undefined) {
+      if (!isValidTransition(ticket.currentStatus, currentStatus)) {
+        return res.status(409).json({
+          error: { code: "INVALID_STATUS_TRANSITION", message: `Cannot move from ${ticket.currentStatus} to ${currentStatus}` },
+        });
+      }
+    }
+
+    const data: Record<string, unknown> = {};
+    if (itPriority !== undefined) data.itPriority = itPriority;
+    if (currentStatus !== undefined) data.currentStatus = currentStatus;
+
+    const updated = await prisma.ticket.update({ where: { id: ticketId }, data });
+
+    res.status(200).json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to update ticket" } });
+  }
+});
 export default app;
