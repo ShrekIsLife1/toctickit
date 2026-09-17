@@ -8,6 +8,7 @@ import MyTickets from "./features/tickets/MyTickets";
 import RequesterTicketDetail from "./features/tickets/RequesterTicketDetail";
 import AppShell from "./components/AppShell";
 import StaffTicketQueue from "./features/staff/StaffTicketQueue";
+import StaffTicketDetail from "./features/staff/StaffTicketDetail";
 
 function RequireAuth({
   children,
@@ -91,6 +92,16 @@ export default function App() {
               <RequireAuth roles={["IT_STAFF", "ADMINISTRATOR"]}>
                 <AppShell>
                   <StaffTicketQueue />
+                </AppShell>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/staff/tickets/:id"
+            element={
+              <RequireAuth roles={["IT_STAFF", "ADMINISTRATOR"]}>
+                <AppShell>
+                  <StaffTicketDetail />
                 </AppShell>
               </RequireAuth>
             }

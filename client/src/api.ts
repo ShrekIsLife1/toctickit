@@ -339,3 +339,65 @@ export async function claimTicket(ticketId: number, ticketOwnerId: number) {
   }
   return body;
 }
+
+export interface StaffTicketDetail {
+  id: number;
+  ticketNumber: string;
+  requesterId: number;
+  requesterName: string;
+  categoryId: number;
+  relatedSystemId: number;
+  summary: string;
+  description: string;
+  requestedPriority: string;
+  itPriority: string | null;
+  currentStatus: string;
+  ticketOwnerId: number | null;
+  ticketOwnerName: string | null;
+  resolutionSummary: string | null;
+  problemAppearsResolved: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function fetchStaffTicket(ticketId: number): Promise<StaffTicketDetail> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}`, {
+    credentials: "include",
+  });
+  if (res.status === 404) {
+    throw new Error("NOT_FOUND");
+  }
+  if (!res.ok) {
+    throw new Error("Unable to load ticket");
+  }
+  return res.json();
+}
+
+export async function updateStaffTicket(
+  ticketId: number,
+  updates: { itPriority?: string; currentStatus?: string }
+): Promise<StaffTicketDetail> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    throw new Error(body?.error?.message ?? "Unable to update ticket");
+  }
+  return body;
+}
+
+export async function fetchStaffAttachments(ticketId: number): Promise<Attachment[]> {
+  // Staff can reuse the same attachments endpoint since ownership checks
+  // there are Requester-only; staff needs its own read path.
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new Error("Unable to load attachments");
+  }
+  return res.json();
+}
