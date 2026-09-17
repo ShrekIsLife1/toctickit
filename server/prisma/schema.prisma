@@ -26,13 +26,26 @@ model Category {
   tickets   Ticket[]
 }
 
-model RequesterUser {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  tickets   Ticket[]
+enum UserRole {
+  REQUESTER
+  IT_STAFF
+  ADMINISTRATOR
+}
+
+model User {
+  id                 Int      @id @default(autoincrement())
+  name               String
+  email              String   @unique
+  passwordHash       String
+  role               UserRole @default(REQUESTER)
+  isActive           Boolean  @default(true)
+  mustChangePassword Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  tickets            Ticket[] @relation("RequesterTickets")
+  ownedTickets       Ticket[] @relation("TicketOwner")
+  comments           Comment[]
 }
 
 model RelatedSystem {
@@ -52,13 +65,40 @@ enum RequestedPriority {
 
 enum TicketStatus {
   NEW
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_REQUESTER
+  RESOLVED
+  CLOSED
+  REOPENED
+  CANCELLED
+}
+
+enum CommentVisibility {
+  PUBLIC
+  INTERNAL
+}
+
+model Comment {
+  id         Int               @id @default(autoincrement())
+  ticketId   Int
+  ticket     Ticket            @relation(fields: [ticketId], references: [id])
+  authorId   Int
+  author     User              @relation(fields: [authorId], references: [id])
+  content    String
+  visibility CommentVisibility
+  createdAt  DateTime          @default(now())
+
+  @@index([ticketId])
 }
 
 model Ticket {
   id                Int               @id @default(autoincrement())
   ticketNumber      String            @unique
   requesterId       Int
-  requester         RequesterUser     @relation(fields: [requesterId], references: [id])
+  requester         User              @relation("RequesterTickets", fields: [requesterId], references: [id])
+  ticketOwnerId     Int?
+  ticketOwner       User?             @relation("TicketOwner", fields: [ticketOwnerId], references: [id])
   categoryId        Int
   category          Category          @relation(fields: [categoryId], references: [id])
   relatedSystemId   Int
@@ -68,14 +108,18 @@ model Ticket {
   requestedPriority RequestedPriority
   itPriority        RequestedPriority?
   currentStatus     TicketStatus      @default(NEW)
-  ticketOwnerId     Int?
+  problemAppearsResolved Boolean      @default(false)
   resolutionSummary String?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
+
   attachments       Attachment[]
+  comments          Comment[]
+
   @@index([requesterId])
   @@index([currentStatus])
   @@index([categoryId])
+  @@index([ticketOwnerId])
 }
 
 model Attachment {

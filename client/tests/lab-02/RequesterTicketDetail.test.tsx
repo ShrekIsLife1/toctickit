@@ -1,9 +1,17 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import RequesterTicketDetail from "../../src/features/tickets/RequesterTicketDetail.js";
-import { RequesterProvider, useRequester } from "../../src/context/RequesterContext.js";
 import * as api from "../../src/api.js";
+import * as authContext from "../../src/context/AuthContext.js";
+
+const MOCK_USER = {
+  id: 1,
+  name: "Jennifer Anderson",
+  email: "jennifer.anderson@example.com",
+  role: "REQUESTER" as const,
+  mustChangePassword: false,
+};
 
 const MOCK_TICKET = {
   id: 42,
@@ -22,35 +30,22 @@ const MOCK_TICKET = {
   updatedAt: new Date().toISOString(),
 };
 
-function Harness() {
-  const { setRequester } = useRequester();
-  return (
-    <>
-      <button
-        onClick={() =>
-          setRequester({ id: 1, name: "Jennifer Anderson", email: "jennifer.anderson@example.com" })
-        }
-      >
-        select-requester
-      </button>
+function renderAtTicket(ticketId: number) {
+  vi.spyOn(authContext, "useAuth").mockReturnValue({
+    user: MOCK_USER,
+    isInitializing: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    refreshUser: vi.fn(),
+  });
+
+  render(
+    <MemoryRouter initialEntries={[`/tickets/${ticketId}`]}>
       <Routes>
         <Route path="/tickets/:id" element={<RequesterTicketDetail />} />
       </Routes>
-    </>
-  );
-}
-
-async function renderAtTicket(ticketId: number) {
-  render(
-    <MemoryRouter initialEntries={[`/tickets/${ticketId}`]}>
-      <RequesterProvider>
-        <Harness />
-      </RequesterProvider>
     </MemoryRouter>
   );
-  act(() => {
-    fireEvent.click(screen.getByText("select-requester"));
-  });
 }
 
 describe("RequesterTicketDetail", () => {
@@ -58,11 +53,11 @@ describe("RequesterTicketDetail", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows a loading state before the ticket resolves", async () => {
+  it("shows a loading state before the ticket resolves", () => {
     vi.spyOn(api, "fetchTicket").mockReturnValue(new Promise(() => {}));
     vi.spyOn(api, "fetchAttachments").mockResolvedValue([]);
 
-    await renderAtTicket(42);
+    renderAtTicket(42);
 
     expect(screen.getByText(/loading ticket/i)).toBeInTheDocument();
   });
@@ -71,7 +66,7 @@ describe("RequesterTicketDetail", () => {
     vi.spyOn(api, "fetchTicket").mockResolvedValue(MOCK_TICKET);
     vi.spyOn(api, "fetchAttachments").mockResolvedValue([]);
 
-    await renderAtTicket(42);
+    renderAtTicket(42);
 
     expect(await screen.findByText("TKT-2026-000042")).toBeInTheDocument();
     expect(screen.getByText("Laptop battery drains quickly")).toBeInTheDocument();
@@ -84,16 +79,18 @@ describe("RequesterTicketDetail", () => {
     vi.spyOn(api, "fetchTicket").mockRejectedValue(new Error("NOT_FOUND"));
     vi.spyOn(api, "fetchAttachments").mockResolvedValue([]);
 
-    await renderAtTicket(999);
+    renderAtTicket(999);
 
-    expect(await screen.findByText(/could not be found, or you do not have access/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/could not be found, or you do not have access/i)
+    ).toBeInTheDocument();
   });
 
   it("shows a generic error state on an unexpected failure", async () => {
     vi.spyOn(api, "fetchTicket").mockRejectedValue(new Error("network down"));
     vi.spyOn(api, "fetchAttachments").mockResolvedValue([]);
 
-    await renderAtTicket(42);
+    renderAtTicket(42);
 
     expect(await screen.findByText(/unable to load this ticket/i)).toBeInTheDocument();
   });
@@ -114,7 +111,7 @@ describe("RequesterTicketDetail", () => {
       },
     ]);
 
-    await renderAtTicket(42);
+    renderAtTicket(42);
 
     expect(await screen.findByText("evidence.pdf")).toBeInTheDocument();
   });

@@ -6,7 +6,7 @@ export interface Category {
 }
 
 export async function fetchCategories(): Promise<Category[]> {
-  const res = await fetch(`${API_URL}/api/categories`);
+  const res = await fetch(`${API_URL}/api/categories`, { credentials: "include" });
   if (!res.ok) {
     throw new Error("Unable to load categories");
   }
@@ -24,7 +24,7 @@ export interface RelatedSystem {
 }
 
 export async function fetchRelatedSystems(): Promise<RelatedSystem[]> {
-  const res = await fetch(`${API_URL}/api/related-systems`);
+  const res = await fetch(`${API_URL}/api/related-systems`, { credentials: "include" });
   if (!res.ok) {
     throw new Error("Unable to load related systems");
   }
@@ -64,15 +64,12 @@ export class ApiFieldError extends Error {
   }
 }
 
-export async function createTicket(
-  requesterId: number,
-  input: CreateTicketInput
-): Promise<Ticket> {
+export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   const res = await fetch(`${API_URL}/api/tickets`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      "X-Requester-Id": String(requesterId),
     },
     body: JSON.stringify(input),
   });
@@ -88,11 +85,8 @@ export async function createTicket(
 
   return body;
 }
+
 // Issue 2 + Issue 4 — call the backend.
-// Steps: fetch `${API_URL}/api/health`; if not ok, throw.
-//        then fetch `${API_URL}/api/categories`; if not ok, throw.
-//        return { online: true, categories }.
-// Throwing on failure lets the UI show a single Offline/error state.
 export async function checkSystem(): Promise<SystemStatus> {
   const healthRes = await fetch(`${API_URL}/api/health`);
   if (!healthRes.ok) {
@@ -106,20 +100,6 @@ export async function checkSystem(): Promise<SystemStatus> {
   const categories: Category[] = await categoriesRes.json();
 
   return { online: true, categories };
-}
-
-export interface Requester {
-  id: number;
-  name: string;
-  email: string;
-}
-
-export async function fetchRequesters(): Promise<Requester[]> {
-  const res = await fetch(`${API_URL}/api/requesters`);
-  if (!res.ok) {
-    throw new Error("Unable to load requesters");
-  }
-  return res.json();
 }
 
 export interface TicketListItem {
@@ -153,10 +133,7 @@ export interface TicketListParams {
   page?: number;
 }
 
-export async function fetchTickets(
-  requesterId: number,
-  params: TicketListParams = {}
-): Promise<TicketListResponse> {
+export async function fetchTickets(params: TicketListParams = {}): Promise<TicketListResponse> {
   const query = new URLSearchParams();
   if (params.search) query.set("search", params.search);
   if (params.categoryId) query.set("categoryId", String(params.categoryId));
@@ -167,7 +144,7 @@ export async function fetchTickets(
   if (params.page) query.set("page", String(params.page));
 
   const res = await fetch(`${API_URL}/api/tickets?${query.toString()}`, {
-    headers: { "X-Requester-Id": String(requesterId) },
+    credentials: "include",
   });
   if (!res.ok) {
     throw new Error("Unable to load tickets");
@@ -187,9 +164,9 @@ export interface Attachment {
   uploadedAt: string;
 }
 
-export async function fetchTicket(requesterId: number, ticketId: number): Promise<Ticket> {
+export async function fetchTicket(ticketId: number): Promise<Ticket> {
   const res = await fetch(`${API_URL}/api/tickets/${ticketId}`, {
-    headers: { "X-Requester-Id": String(requesterId) },
+    credentials: "include",
   });
   if (res.status === 404) {
     throw new Error("NOT_FOUND");
@@ -200,9 +177,9 @@ export async function fetchTicket(requesterId: number, ticketId: number): Promis
   return res.json();
 }
 
-export async function fetchAttachments(requesterId: number, ticketId: number): Promise<Attachment[]> {
+export async function fetchAttachments(ticketId: number): Promise<Attachment[]> {
   const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
-    headers: { "X-Requester-Id": String(requesterId) },
+    credentials: "include",
   });
   if (!res.ok) {
     throw new Error("Unable to load attachments");
@@ -210,17 +187,13 @@ export async function fetchAttachments(requesterId: number, ticketId: number): P
   return res.json();
 }
 
-export async function uploadAttachment(
-  requesterId: number,
-  ticketId: number,
-  file: File
-): Promise<Attachment> {
+export async function uploadAttachment(ticketId: number, file: File): Promise<Attachment> {
   const formData = new FormData();
   formData.append("file", file);
 
   const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
     method: "POST",
-    headers: { "X-Requester-Id": String(requesterId) },
+    credentials: "include",
     body: formData,
   });
 
@@ -235,16 +208,12 @@ export function downloadAttachmentUrl(attachmentId: number): string {
   return `${API_URL}/api/attachments/${attachmentId}/download`;
 }
 
-export async function removeAttachment(
-  requesterId: number,
-  attachmentId: number,
-  reason: string
-): Promise<Attachment> {
+export async function removeAttachment(attachmentId: number, reason: string): Promise<Attachment> {
   const res = await fetch(`${API_URL}/api/attachments/${attachmentId}`, {
     method: "DELETE",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      "X-Requester-Id": String(requesterId),
     },
     body: JSON.stringify({ reason }),
   });
