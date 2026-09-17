@@ -2,20 +2,23 @@ import { describe, it, expect, beforeAll } from "vitest";
 import request from "supertest";
 import { app } from "../../src/app.js";
 
-const REQUESTER_A = "1";
-const REQUESTER_B = "2";
+const REQUESTER_A = { email: "jennifer.anderson@example.com", password: "ChangeMe123!" };
+const REQUESTER_B = { email: "michael.brown@example.com", password: "ChangeMe123!" };
 
-async function createTicket(requesterId: string) {
-  const res = await request(app)
-    .post("/api/tickets")
-    .set("X-Requester-Id", requesterId)
-    .send({
-      categoryId: 1,
-      relatedSystemId: 1,
-      summary: `Attachment test ticket ${Date.now()}`,
-      description: "Ticket created to exercise the attachment lifecycle in tests.",
-      requestedPriority: "MEDIUM",
-    });
+async function loginAgent(creds: { email: string; password: string }) {
+  const agent = request.agent(app);
+  await agent.post("/api/auth/login").send(creds);
+  return agent;
+}
+
+async function createTicket(agent: ReturnType<typeof request.agent>) {
+  const res = await agent.post("/api/tickets").send({
+    categoryId: 1,
+    relatedSystemId: 1,
+    summary: `Attachment test ticket ${Date.now()}`,
+    description: "Ticket created to exercise the attachment lifecycle in tests.",
+    requestedPriority: "MEDIUM",
+  });
   return res.body;
 }
 
@@ -24,17 +27,20 @@ function pdfBuffer() {
 }
 
 describe("Attachment lifecycle", () => {
+  let agentA: ReturnType<typeof request.agent>;
+  let agentB: ReturnType<typeof request.agent>;
   let ticketId: number;
 
   beforeAll(async () => {
-    const ticket = await createTicket(REQUESTER_A);
+    agentA = await loginAgent(REQUESTER_A);
+    agentB = await loginAgent(REQUESTER_B);
+    const ticket = await createTicket(agentA);
     ticketId = ticket.id;
   });
 
   it("uploads a valid attachment", async () => {
-    const res = await request(app)
+    const res = await agentA
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("X-Requester-Id", REQUESTER_A)
       .attach("file", pdfBuffer(), "report.pdf");
 
     expect(res.status).toBe(201);
@@ -43,9 +49,8 @@ describe("Attachment lifecycle", () => {
   });
 
   it("rejects an unsupported file type", async () => {
-    const res = await request(app)
+    const res = await agentA
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("X-Requester-Id", REQUESTER_A)
       .attach("file", Buffer.from("not a real exe"), { filename: "virus.exe", contentType: "application/x-msdownload" });
 
     expect(res.status).toBe(400);
@@ -53,40 +58,32 @@ describe("Attachment lifecycle", () => {
   });
 
   it("downloads an active attachment", async () => {
-    const uploadRes = await request(app)
+    const uploadRes = await agentA
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("X-Requester-Id", REQUESTER_A)
       .attach("file", pdfBuffer(), "downloadable.pdf");
 
-    const downloadRes = await request(app)
-      .get(`/api/attachments/${uploadRes.body.id}/download`)
-      .set("X-Requester-Id", REQUESTER_A);
+    const downloadRes = await agentA.get(`/api/attachments/${uploadRes.body.id}/download`);
 
     expect(downloadRes.status).toBe(200);
   });
 
   it("rejects downloading an attachment belonging to another requester's ticket", async () => {
-    const uploadRes = await request(app)
+    const uploadRes = await agentA
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("X-Requester-Id", REQUESTER_A)
       .attach("file", pdfBuffer(), "private.pdf");
 
-    const res = await request(app)
-      .get(`/api/attachments/${uploadRes.body.id}/download`)
-      .set("X-Requester-Id", REQUESTER_B);
+    const res = await agentB.get(`/api/attachments/${uploadRes.body.id}/download`);
 
     expect(res.status).toBe(404);
   });
 
   it("soft-removes an attachment with a valid reason", async () => {
-    const uploadRes = await request(app)
+    const uploadRes = await agentA
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("X-Requester-Id", REQUESTER_A)
       .attach("file", pdfBuffer(), "to-remove.pdf");
 
-    const removeRes = await request(app)
+    const removeRes = await agentA
       .delete(`/api/attachments/${uploadRes.body.id}`)
-      .set("X-Requester-Id", REQUESTER_A)
       .send({ reason: "Duplicate file, no longer needed" });
 
     expect(removeRes.status).toBe(200);
@@ -95,51 +92,41 @@ describe("Attachment lifecycle", () => {
   });
 
   it("rejects removal without a reason", async () => {
-    const uploadRes = await request(app)
+    const uploadRes = await agentA
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("X-Requester-Id", REQUESTER_A)
       .attach("file", pdfBuffer(), "needs-reason.pdf");
 
-    const res = await request(app)
-      .delete(`/api/attachments/${uploadRes.body.id}`)
-      .set("X-Requester-Id", REQUESTER_A)
-      .send({});
+    const res = await agentA.delete(`/api/attachments/${uploadRes.body.id}`).send({});
 
     expect(res.status).toBe(400);
   });
 
   it("rejects downloading a removed attachment", async () => {
-    const uploadRes = await request(app)
+    const uploadRes = await agentA
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("X-Requester-Id", REQUESTER_A)
       .attach("file", pdfBuffer(), "removed-then-download.pdf");
 
-    await request(app)
+    await agentA
       .delete(`/api/attachments/${uploadRes.body.id}`)
-      .set("X-Requester-Id", REQUESTER_A)
       .send({ reason: "Testing removed download rejection" });
 
-    const downloadRes = await request(app)
-      .get(`/api/attachments/${uploadRes.body.id}/download`)
-      .set("X-Requester-Id", REQUESTER_A);
+    const downloadRes = await agentA.get(`/api/attachments/${uploadRes.body.id}/download`);
 
     expect(downloadRes.status).toBe(404);
   });
 
   it("rejects a 6th active attachment on the same ticket", async () => {
-    const freshTicket = await createTicket(REQUESTER_A);
+    const freshTicket = await createTicket(agentA);
 
     for (let i = 0; i < 5; i++) {
-      const res = await request(app)
+      const res = await agentA
         .post(`/api/tickets/${freshTicket.id}/attachments`)
-        .set("X-Requester-Id", REQUESTER_A)
         .attach("file", pdfBuffer(), `file-${i}.pdf`);
       expect(res.status).toBe(201);
     }
 
-    const sixthRes = await request(app)
+    const sixthRes = await agentA
       .post(`/api/tickets/${freshTicket.id}/attachments`)
-      .set("X-Requester-Id", REQUESTER_A)
       .attach("file", pdfBuffer(), "file-6.pdf");
 
     expect(sixthRes.status).toBe(409);
@@ -147,9 +134,7 @@ describe("Attachment lifecycle", () => {
   });
 
   it("lists attachment metadata including removed items", async () => {
-    const res = await request(app)
-      .get(`/api/tickets/${ticketId}/attachments`)
-      .set("X-Requester-Id", REQUESTER_A);
+    const res = await agentA.get(`/api/tickets/${ticketId}/attachments`);
 
     expect(res.status).toBe(200);
     expect(res.body.some((a: { isRemoved: boolean }) => a.isRemoved === true)).toBe(true);
