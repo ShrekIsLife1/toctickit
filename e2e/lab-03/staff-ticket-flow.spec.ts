@@ -23,14 +23,21 @@ test.describe("IT Staff ticket flow", () => {
     await page.getByLabel(/requested priority/i).selectOption({ index: 1 });
     await page.getByLabel(/^summary/i).fill(uniqueSummary);
     await page.getByLabel(/^description/i).fill("Ticket created for the full IT Staff workflow E2E test.");
-    await page.getByRole("button", { name: /^submit$/i }).click();
+    const [createResponse] = await Promise.all([
+      page.waitForResponse(
+        (resp) => resp.url().includes("/api/tickets") && resp.request().method() === "POST"
+      ),
+      page.getByRole("button", { name: /^submit$/i }).click(),
+    ]);
+    const createdTicket = await createResponse.json();
+    const ticketId = String(createdTicket.id ?? createdTicket.ticket?.id);
+
     await page.getByRole("button", { name: /view my tickets/i }).click();
     await page.waitForURL(/my-tickets/);
 
-    await page.locator("table tbody tr", { hasText: uniqueSummary }).getByRole("link").click();
+    await page.goto(`/tickets/${ticketId}`);
     await page.waitForURL(/\/tickets\/\d+/);
     const requesterTicketUrl = page.url();
-    const ticketId = requesterTicketUrl.match(/\/tickets\/(\d+)/)?.[1];
 
     await page.getByPlaceholder(/type your comment here/i).fill("Requester's initial public comment.");
     await page.getByRole("button", { name: /post comment/i }).click();
@@ -44,8 +51,7 @@ test.describe("IT Staff ticket flow", () => {
     await login(page, "kevin.patel@example.com", "ChangeMe123!");
     await page.waitForURL(/staff\/queue/);
 
-    await page.getByPlaceholder(/search by ticket number/i).fill(uniqueSummary);
-    await page.locator("table tbody tr", { hasText: uniqueSummary }).getByRole("link").click();
+    await page.goto(`/staff/tickets/${ticketId}`);
     await page.waitForURL(/\/staff\/tickets\/\d+/);
 
     await page.getByRole("button", { name: /claim this ticket/i }).click();

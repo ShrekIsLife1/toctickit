@@ -55,7 +55,7 @@ export default function AttachmentSection({
 
     setUploading(true);
     try {
-      await uploadAttachment(requesterId, ticketId, file);
+      await uploadAttachment(ticketId, file);
       onAttachmentsChanged();
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed.");
@@ -68,7 +68,7 @@ export default function AttachmentSection({
   async function handleConfirmRemove(attachmentId: number) {
     if (removalReason.trim().length < 3) return;
     try {
-      await removeAttachment(requesterId, attachmentId, removalReason.trim());
+      await removeAttachment(attachmentId, removalReason.trim());
       setRemovingId(null);
       setRemovalReason("");
       onAttachmentsChanged();
@@ -81,7 +81,7 @@ export default function AttachmentSection({
     setDownloadError("");
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL ?? "http://localhost:3000"}/api/attachments/${attachment.id}/download`, {
-        headers: { "X-Requester-Id": String(requesterId) },
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Download failed");
       const blob = await res.blob();
