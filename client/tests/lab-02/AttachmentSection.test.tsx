@@ -81,7 +81,7 @@ describe("AttachmentSection", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     await waitFor(() => {
-      expect(uploadSpy).toHaveBeenCalledWith(1, 10, file);
+      expect(uploadSpy).toHaveBeenCalledWith(10, file);
       expect(onChanged).toHaveBeenCalled();
     });
   });

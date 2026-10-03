@@ -1,9 +1,17 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import MyTickets from "../../src/features/tickets/MyTickets.js";
-import { RequesterProvider, useRequester } from "../../src/context/RequesterContext.js";
 import * as api from "../../src/api.js";
+import * as authContext from "../../src/context/AuthContext.js";
+
+const MOCK_USER = {
+  id: 1,
+  name: "Jennifer Anderson",
+  email: "jennifer.anderson@example.com",
+  role: "REQUESTER" as const,
+  mustChangePassword: false,
+};
 
 const MOCK_TICKET = {
   id: 1,
@@ -16,33 +24,20 @@ const MOCK_TICKET = {
   updatedAt: new Date().toISOString(),
 };
 
-function Harness() {
-  const { setRequester } = useRequester();
-  return (
-    <>
-      <button
-        onClick={() =>
-          setRequester({ id: 1, name: "Jennifer Anderson", email: "jennifer.anderson@example.com" })
-        }
-      >
-        select-requester
-      </button>
-      <MyTickets />
-    </>
-  );
-}
+function renderWithMockAuth() {
+  vi.spyOn(authContext, "useAuth").mockReturnValue({
+    user: MOCK_USER,
+    isInitializing: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    refreshUser: vi.fn(),
+  });
 
-async function renderWithRequesterSelected() {
-  render(
+  return render(
     <MemoryRouter>
-      <RequesterProvider>
-        <Harness />
-      </RequesterProvider>
+      <MyTickets />
     </MemoryRouter>
   );
-  act(() => {
-    fireEvent.click(screen.getByText("select-requester"));
-  });
 }
 
 describe("MyTickets", () => {
@@ -57,7 +52,7 @@ describe("MyTickets", () => {
       pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1 },
     });
 
-    await renderWithRequesterSelected();
+    await renderWithMockAuth();
 
     expect(await screen.findByText(/haven't created any tickets/i)).toBeInTheDocument();
   });
@@ -75,7 +70,7 @@ describe("MyTickets", () => {
         pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1 },
       });
 
-    await renderWithRequesterSelected();
+    await renderWithMockAuth();
     await screen.findAllByText("Laptop battery drains quickly");
     fireEvent.change(screen.getByPlaceholderText(/search by ticket number/i), {
       target: { value: "nonexistent" },
@@ -98,7 +93,7 @@ describe("MyTickets", () => {
       pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1 },
     });
 
-    await renderWithRequesterSelected();
+    await renderWithMockAuth();
 
     expect((await screen.findAllByText("TKT-2026-000001")).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Laptop battery drains quickly").length).toBeGreaterThan(0);
@@ -108,7 +103,7 @@ describe("MyTickets", () => {
     vi.spyOn(api, "fetchCategories").mockResolvedValue([]);
     vi.spyOn(api, "fetchTickets").mockRejectedValue(new Error("network down"));
 
-    await renderWithRequesterSelected();
+    await renderWithMockAuth();
 
     expect(await screen.findByText(/unable to load tickets/i)).toBeInTheDocument();
   });
@@ -120,7 +115,7 @@ describe("MyTickets", () => {
       pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1 },
     });
 
-    await renderWithRequesterSelected();
+    await renderWithMockAuth();
     await screen.findAllByText("TKT-2026-000001");
     fireEvent.change(screen.getByPlaceholderText(/search by ticket number/i), {
       target: { value: "VPN" },
@@ -129,7 +124,7 @@ describe("MyTickets", () => {
     await waitFor(
       () => {
         const lastCall = fetchSpy.mock.calls[fetchSpy.mock.calls.length - 1];
-        expect(lastCall[1]).toMatchObject({ search: "VPN" });
+        expect(lastCall[0]).toMatchObject({ search: "VPN" });
       },
       { timeout: 1000 }
     );

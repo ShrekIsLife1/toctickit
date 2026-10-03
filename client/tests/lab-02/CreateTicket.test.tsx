@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import CreateTicket from "../../src/features/tickets/CreateTicket.js";
-import { RequesterProvider, useRequester } from "../../src/context/RequesterContext.js";
 import * as api from "../../src/api.js";
+import * as authContext from "../../src/context/AuthContext.js";
 
 const MOCK_CATEGORIES = [
   { id: 1, name: "Hardware" },
@@ -14,33 +14,31 @@ const MOCK_RELATED_SYSTEMS = [
   { id: 2, name: "Email" },
 ];
 
-function Harness() {
-  const { setRequester } = useRequester();
-  return (
-    <>
-      <button
-        onClick={() =>
-          setRequester({ id: 1, name: "Jennifer Anderson", email: "jennifer.anderson@example.com" })
-        }
-      >
-        select-requester
-      </button>
+const MOCK_USER = {
+  id: 1,
+  name: "Jennifer Anderson",
+  email: "jennifer.anderson@example.com",
+  role: "REQUESTER" as const,
+  mustChangePassword: false,
+};
+
+function renderWithMockAuth() {
+  vi.spyOn(authContext, "useAuth").mockReturnValue({
+    user: MOCK_USER,
+    isInitializing: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    refreshUser: vi.fn(),
+  });
+
+  return render(
+    <MemoryRouter>
       <CreateTicket />
-    </>
+    </MemoryRouter>
   );
 }
 
-async function renderWithRequesterSelected() {
-  render(
-    <MemoryRouter>
-      <RequesterProvider>
-        <Harness />
-      </RequesterProvider>
-    </MemoryRouter>
-  );
-  act(() => {
-    fireEvent.click(screen.getByText("select-requester"));
-  });
+async function waitForFormReady() {
   await waitFor(() => {
     expect(screen.getByLabelText(/^category/i)).toBeInTheDocument();
   });
@@ -63,20 +61,11 @@ describe("CreateTicket", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows a loading state before reference data resolves", async () => {
+  it("shows a loading state before reference data resolves", () => {
     vi.spyOn(api, "fetchCategories").mockReturnValue(new Promise(() => {}));
     vi.spyOn(api, "fetchRelatedSystems").mockReturnValue(new Promise(() => {}));
 
-    render(
-      <MemoryRouter>
-        <RequesterProvider>
-          <Harness />
-        </RequesterProvider>
-      </MemoryRouter>
-    );
-    act(() => {
-      fireEvent.click(screen.getByText("select-requester"));
-    });
+    renderWithMockAuth();
 
     expect(screen.getByText(/loading form data/i)).toBeInTheDocument();
   });
@@ -86,7 +75,8 @@ describe("CreateTicket", () => {
     vi.spyOn(api, "fetchRelatedSystems").mockResolvedValue(MOCK_RELATED_SYSTEMS);
     const createSpy = vi.spyOn(api, "createTicket");
 
-    await renderWithRequesterSelected();
+    renderWithMockAuth();
+    await waitForFormReady();
 
     fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
 
@@ -99,7 +89,8 @@ describe("CreateTicket", () => {
     vi.spyOn(api, "fetchRelatedSystems").mockResolvedValue(MOCK_RELATED_SYSTEMS);
     vi.spyOn(api, "createTicket").mockReturnValue(new Promise(() => {}));
 
-    await renderWithRequesterSelected();
+    renderWithMockAuth();
+    await waitForFormReady();
     fillValidForm();
 
     fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
@@ -129,7 +120,8 @@ describe("CreateTicket", () => {
       updatedAt: new Date().toISOString(),
     });
 
-    await renderWithRequesterSelected();
+    renderWithMockAuth();
+    await waitForFormReady();
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
 
@@ -141,7 +133,8 @@ describe("CreateTicket", () => {
     vi.spyOn(api, "fetchRelatedSystems").mockResolvedValue(MOCK_RELATED_SYSTEMS);
     vi.spyOn(api, "createTicket").mockRejectedValue(new Error("Unable to create ticket"));
 
-    await renderWithRequesterSelected();
+    renderWithMockAuth();
+    await waitForFormReady();
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
 
@@ -156,7 +149,8 @@ describe("CreateTicket", () => {
       new api.ApiFieldError("Invalid", { summary: "Summary must be 5-120 characters" })
     );
 
-    await renderWithRequesterSelected();
+    renderWithMockAuth();
+    await waitForFormReady();
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
 

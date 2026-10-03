@@ -1,4 +1,5 @@
 import { getPrisma } from "../src/prisma.js";
+import bcrypt from "bcrypt";
 
 const CATEGORY_NAMES = ["Account and Access", "Hardware", "Software", "Network"];
 
@@ -13,28 +14,40 @@ async function main() {
   }
   console.log(`Seeded ${CATEGORY_NAMES.length} categories.`);
 
-  await seedRequesters();
+  await seedUsers();
   await seedRelatedSystems();
 }
 
-const REQUESTER_SEED = [
-  { name: "Jennifer Anderson", email: "jennifer.anderson@example.com", isActive: true },
-  { name: "Michael Brown", email: "michael.brown@example.com", isActive: true },
-  { name: "Sarah Johnson", email: "sarah.johnson@example.com", isActive: true },
-  { name: "David Lee", email: "david.lee@example.com", isActive: true },
-  { name: "Former Employee", email: "former.employee@example.com", isActive: false },
+
+const SEED_PASSWORD = "ChangeMe123!";
+
+const USER_SEED = [
+  { name: "Jennifer Anderson", email: "jennifer.anderson@example.com", role: "REQUESTER" as const, isActive: true },
+  { name: "Michael Brown", email: "michael.brown@example.com", role: "REQUESTER" as const, isActive: true },
+  { name: "Sarah Johnson", email: "sarah.johnson@example.com", role: "REQUESTER" as const, isActive: true },
+  { name: "David Lee", email: "david.lee@example.com", role: "REQUESTER" as const, isActive: true },
+  { name: "Former Employee", email: "former.employee@example.com", role: "REQUESTER" as const, isActive: false },
+
+  { name: "Kevin Patel", email: "kevin.patel@example.com", role: "IT_STAFF" as const, isActive: true },
+  { name: "Lisa Martinez", email: "lisa.martinez@example.com", role: "IT_STAFF" as const, isActive: true },
+  { name: "Robert Wilson", email: "robert.wilson@example.com", role: "IT_STAFF" as const, isActive: true },
+  { name: "Inactive Staff", email: "inactive.staff@example.com", role: "IT_STAFF" as const, isActive: false },
+
+  { name: "Admin User", email: "admin@example.com", role: "ADMINISTRATOR" as const, isActive: true },
 ];
 
-async function seedRequesters() {
+async function seedUsers() {
   const prisma = getPrisma();
-  for (const r of REQUESTER_SEED) {
-    await prisma.requesterUser.upsert({
-      where: { email: r.email },
+  const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
+
+  for (const u of USER_SEED) {
+    await prisma.user.upsert({
+      where: { email: u.email },
       update: {},
-      create: r,
+      create: { ...u, passwordHash, mustChangePassword: false },
     });
   }
-  console.log(`Seeded ${REQUESTER_SEED.length} requesters.`);
+  console.log(`Seeded ${USER_SEED.length} users. Local dev password for all: "${SEED_PASSWORD}"`);
 }
 
 const RELATED_SYSTEM_NAMES = [

@@ -1,34 +1,50 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { fetchTicket, fetchAttachments, Ticket, Attachment } from "../../api";
-import { useRequester } from "../../context/RequesterContext";
+import { useAuth } from "../../context/AuthContext";
 import AttachmentSection from "./AttachmentSection";
+import { fetchComments, markProblemResolved, Comment } from "../../api";
+import PublicComments from "./PublicComments";
 
 type LoadState = "loading" | "success" | "not-found" | "error";
 
-export default function RequesterTicketDetail() {
+export default function UserTicketDetail() {
   const { id } = useParams<{ id: string }>();
-  const { requester } = useRequester();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [resolveError, setResolveError] = useState("");
+  const [resolving, setResolving] = useState(false);
+  
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
 
   const ticketId = Number(id);
 
-  const loadAttachments = useCallback(async () => {
-    if (!requester) return;
+  const loadComments = useCallback(async () => {
+    if (!ticketId) return;
     try {
-      const data = await fetchAttachments(requester.id, ticketId);
+      const data = await fetchComments(ticketId);
+      setComments(data);
+    } catch {
+      // Non-fatal
+    }
+  }, [ticketId]);
+
+  const loadAttachments = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await fetchAttachments(ticketId);
       setAttachments(data);
     } catch {
       // Non-fatal: the ticket header still loads even if attachments fail here.
     }
-  }, [requester, ticketId]);
+  }, [user, ticketId]);
 
   useEffect(() => {
-    if (!requester || !Number.isInteger(ticketId)) {
+    if (!user || !Number.isInteger(ticketId)) {
       setLoadState("not-found");
       return;
     }
@@ -37,11 +53,12 @@ export default function RequesterTicketDetail() {
     async function load() {
       setLoadState("loading");
       try {
-        const t = await fetchTicket(requester!.id, ticketId);
+        const t = await fetchTicket(ticketId);
         if (cancelled) return;
         setTicket(t);
         setLoadState("success");
         await loadAttachments();
+        await loadComments();
       } catch (err) {
         if (cancelled) return;
         setLoadState(err instanceof Error && err.message === "NOT_FOUND" ? "not-found" : "error");
@@ -52,7 +69,20 @@ export default function RequesterTicketDetail() {
     return () => {
       cancelled = true;
     };
-  }, [requester, ticketId, loadAttachments]);
+  }, [user, ticketId, loadAttachments]);
+
+  async function handleMarkResolved() {
+    setResolving(true);
+    setResolveError("");
+    try {
+      await markProblemResolved(ticketId);
+      setTicket((t) => (t ? { ...t, problemAppearsResolved: true } : t));
+    } catch (err) {
+      setResolveError(err instanceof Error ? err.message : "Unable to update ticket");
+    } finally {
+      setResolving(false);
+    }
+  }
 
   if (loadState === "loading") {
     return (
@@ -114,11 +144,31 @@ export default function RequesterTicketDetail() {
       </div>
 
       <AttachmentSection
-        requesterId={requester!.id}
+        userId={user!.id}
         ticketId={ticketId}
         attachments={attachments}
         onAttachmentsChanged={loadAttachments}
       />
+      {ticket.currentStatus === "RESOLVED" && (       
+        <div className="mt-3">
+          {ticket.problemAppearsResolved ? (
+            <button className="btn btn-zen-secondary" disabled>
+              ✓ You marked this as resolved
+            </button>
+          ) : (
+            <button
+              className="btn btn-zen-secondary"
+              onClick={handleMarkResolved}
+              disabled={resolving}
+            >
+              {resolving ? "Saving…" : "Mark Problem as Resolved"}
+            </button>
+          )}
+          {resolveError && <div className="alert alert-danger py-2 small mt-2">{resolveError}</div>}
+        </div>
+      )}
+
+      <PublicComments ticketId={ticketId} comments={comments} onCommentPosted={loadComments} />
     </div>
   );
 }

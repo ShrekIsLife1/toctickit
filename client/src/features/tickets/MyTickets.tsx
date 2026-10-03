@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchTickets, fetchCategories, Category, TicketListItem } from "../../api";
-import { useRequester } from "../../context/RequesterContext";
+import { useAuth } from "../../context/AuthContext";
 
 type LoadState = "loading" | "success" | "error";
 
@@ -12,7 +12,7 @@ const PRIORITY_BADGE: Record<string, string> = {
 };
 
 export default function MyTickets() {
-  const { requester } = useRequester();
+  const { user } = useAuth();
 
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [tickets, setTickets] = useState<TicketListItem[]>([]);
@@ -35,13 +35,13 @@ export default function MyTickets() {
   }, []);
 
   useEffect(() => {
-    if (!requester) return;
+    if (!user) return;
     let cancelled = false;
 
     async function load() {
       setLoadState("loading");
       try {
-        const res = await fetchTickets(requester!.id, {
+        const res = await fetchTickets({
           search: search || undefined,
           categoryId: categoryId || undefined,
           requestedPriority: requestedPriority || undefined,
@@ -65,7 +65,7 @@ export default function MyTickets() {
       cancelled = true;
       clearTimeout(debounce);
     };
-  }, [requester, search, categoryId, requestedPriority, currentStatus, sortBy, sortDir, page]);
+  }, [user, search, categoryId, requestedPriority, currentStatus, sortBy, sortDir, page]);
 
   const hasActiveFilters = Boolean(search || categoryId || requestedPriority || currentStatus);
 
