@@ -36,7 +36,7 @@ export default function UserTicketDetail() {
   const loadAttachments = useCallback(async () => {
     if (!user) return;
     try {
-      const data = await fetchAttachments(user.id, ticketId);
+      const data = await fetchAttachments(ticketId);
       setAttachments(data);
     } catch {
       // Non-fatal: the ticket header still loads even if attachments fail here.
@@ -53,7 +53,7 @@ export default function UserTicketDetail() {
     async function load() {
       setLoadState("loading");
       try {
-        const t = await fetchTicket(user!.id, ticketId);
+        const t = await fetchTicket(ticketId);
         if (cancelled) return;
         setTicket(t);
         setLoadState("success");
@@ -149,7 +149,7 @@ export default function UserTicketDetail() {
         attachments={attachments}
         onAttachmentsChanged={loadAttachments}
       />
-      {!["RESOLVED", "CLOSED", "CANCELLED"].includes(ticket.currentStatus) && (
+      {ticket.currentStatus === "RESOLVED" && (       
         <div className="mt-3">
           {ticket.problemAppearsResolved ? (
             <button className="btn btn-zen-secondary" disabled>

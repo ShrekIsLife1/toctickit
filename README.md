@@ -1,7 +1,7 @@
 # TokTickIT - IT Service Desk
 
 ## Description
-TokTickIT est une application de gestion de tickets IT. Ce projet contient un frontend React et un backend Express avec PostgreSQL et Prisma.
+TokTickIT is an IT ticket management application. This project contains a React frontend and an Express backend with PostgreSQL and Prisma.
 
 ## Setup & Installation
 
@@ -21,6 +21,7 @@ TokTickIT est une application de gestion de tickets IT. Ce projet contient un fr
    cp server/.env.example server/.env
    cp client/.env.example client/.env
    ```
+   Set `SESSION_SECRET` in `server/.env` to any local development string.
 3. Run Database Migrations & Seed:
    ```bash
    cd server
@@ -35,37 +36,71 @@ TokTickIT est une application de gestion de tickets IT. Ce projet contient un fr
 
 - `GET /api/health` — backend health check
 - `GET /api/categories` — seeded IT request categories
+- Frontend "Check System" screen at `/system-check`
 
 ## Lab 2 — Requester Ticketing MVP
 
-Lab 2 adds a full Requester-facing ticketing flow behind a temporary
-**Development Requester selector** (testing mechanism only, not real
-authentication — real login arrives in Lab 3).
+Lab 2 added a full Requester-facing ticketing flow, originally behind a
+temporary Development Requester selector. **That selector was removed in
+Lab 3** and replaced by real authentication (see below) — all Lab 2
+Requester functionality now runs under the authenticated user's identity.
+
+- Create Ticket, My Tickets (search/filter/sort/pagination), Requester
+  Ticket Detail
+- Attachment lifecycle: upload, download, soft removal
+- Zen Green UI theme
+
+## Lab 3 — Users, Roles, IT Staff Ticketing, and Admin Screens
+
+Lab 3 replaces the Development Requester selector with real authentication
+and role-based authorization across three roles: **Requester**, **IT
+Staff**, and **Administrator**.
+
+### Local development credentials
+All seeded accounts share the same local-development-only password:
+```
+ChangeMe123!
+```
+Seeded accounts (see `server/prisma/seed.ts` for the full list):
+- Requesters: `jennifer.anderson@example.com`, `michael.brown@example.com`, etc.
+- IT Staff: `kevin.patel@example.com`, `lisa.martinez@example.com`, etc.
+- Administrator: `admin@example.com`
+
+These credentials are for local development only and must never be reused
+for a real deployment.
 
 ### New API endpoints
-- `GET /api/requesters` — active Development Requesters
-- `GET /api/related-systems` — active Related Systems
-- `POST /api/tickets` — create a Ticket for the selected Requester
-- `GET /api/tickets` — search/filter/sort/paginate the selected Requester's own Tickets
-- `GET /api/tickets/:id` — retrieve one owned Ticket
-- `POST /api/tickets/:id/attachments` — upload an Attachment
-- `GET /api/tickets/:id/attachments` — list Attachment metadata
-- `GET /api/attachments/:id/download` — download an active Attachment
-- `DELETE /api/attachments/:id` — soft-remove an Attachment
+- `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`,
+  `POST /api/auth/change-password` — session-cookie authentication
+  (httpOnly, `SameSite=Lax`)
+- `POST /api/tickets/:id/comments`, `GET /api/tickets/:id/comments` —
+  Public Comments (Requester/IT Staff/Admin) and Internal Notes (IT
+  Staff/Admin only)
+- `POST /api/tickets/:id/resolve-indication` — Requester "problem appears
+  resolved" indicator (does not change formal ticket status)
+- `GET /api/staff/tickets`, `GET /api/staff/tickets/:id` — IT Staff Ticket
+  Queue (not ownership-scoped)
+- `POST /api/staff/tickets/:id/claim` — claim/reassign ticket ownership
+- `PATCH /api/staff/tickets/:id` — update IT Priority and Current Status
+  (validated against a fixed transition matrix, see
+  `docs/lab-03/api-spec.md`)
+- `GET/POST/PATCH /api/admin/users`, `POST /api/admin/users/:id/reset-password`
+  — Administrator user management
 
-All Ticket/Attachment endpoints require an `X-Requester-Id` header
-identifying the currently selected Development Requester.
-
-### File uploads
-Uploaded attachments are stored locally under `server/uploads/` (git-ignored
-except for `.gitkeep`). No cloud storage is used in Lab 2.
+All Lab 2 Ticket/Attachment endpoints are unchanged in shape but now
+require an authenticated session instead of the removed `X-Requester-Id`
+header.
 
 ### Frontend routes
-- `/select-requester` — Development Requester Selection screen
-- `/my-tickets` — My Tickets (search, filter, sort, pagination)
-- `/create-ticket` — Create Ticket
-- `/tickets/:id` — Requester Ticket Detail + Attachments
-- `/system-check` — Lab 1's health/categories check screen (preserved from Lab 1)
+- `/login` — Login screen
+- `/change-password` — mandatory first-login password change
+- `/my-tickets`, `/create-ticket`, `/tickets/:id` — Requester screens
+  (Requester role only)
+- `/staff/queue`, `/staff/tickets/:id` — IT Staff Ticket Queue and Detail
+  (IT Staff / Administrator only)
+- `/admin/users` — Administrator User Management (Administrator only)
+- `/forbidden` — shown when an authenticated user's role does not permit
+  a route they reached
 
 ## Testing
 
@@ -87,14 +122,21 @@ Requires both servers running against a seeded database.
 npx playwright install chromium   # first time only
 npx playwright test               # from the repository root
 ```
-Responsive screenshots are written to `artifacts/lab-02/screenshots/`.
+Responsive screenshots are written to `artifacts/lab-02/screenshots/` and
+`artifacts/lab-03/screenshots/`.
 
 ## Documentation
 
 - `docs/lab-01/` — Lab 1 tests, AI use, and reviewer notes
-- `docs/lab-02/specification.md` — Sprint 2 engineering specification
-- `docs/lab-02/tests.md` — Sprint 2 test plan and results
-- `docs/lab-02/ui-spec.md` — Zen Green UI specification
-- `docs/lab-02/api-spec.md` — REST API contract
-- `docs/lab-02/ai-use.md` — AI use and reflection
-- `docs/lab-02/reviewer.md` — peer review evidence
+- `docs/lab-02/` — Lab 2 specification, tests, UI spec, API spec, AI use,
+  reviewer notes
+- `docs/lab-03/specification.md` — Sprint 3 engineering specification
+  (authentication, authorization matrix, IT Staff workflow, Administrator
+  user management)
+- `docs/lab-03/tests.md` — Sprint 3 test plan and results
+- `docs/lab-03/ui-spec.md` — Zen Green UI specification extensions (Login,
+  Change Password, Ticket Queue, extended Ticket Detail, User Management)
+- `docs/lab-03/api-spec.md` — REST API contract, including the full status
+  transition matrix
+- `docs/lab-03/ai-use.md` — AI use and reflection
+- `docs/lab-03/reviewer.md` — peer review evidence

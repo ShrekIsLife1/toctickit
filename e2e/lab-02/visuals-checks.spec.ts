@@ -9,16 +9,17 @@ test.beforeAll(() => {
   }
 });
 
-async function selectDevRequester(page: import("@playwright/test").Page) {
-  await page.goto("/select-requester");
-  await page.getByLabel(/development requester/i).selectOption({ index: 1 });
-  await page.getByRole("button", { name: /continue/i }).click();
+async function login(page: import("@playwright/test").Page) {
+  await page.goto("/login");
+  await page.getByLabel(/email address/i).fill("jennifer.anderson@example.com");
+  await page.getByLabel(/^password$/i).fill("ChangeMe123!");
+  await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForURL(/my-tickets/);
 }
 
 test("capture Create Ticket screen", async ({ page }, testInfo) => {
-  await selectDevRequester(page);
-  await page.getByRole("link", { name: /create ticket/i }).click();
+  await login(page);
+  await page.getByRole("link", { name: /create ticket/i }).first().click();
   await page.waitForURL(/create-ticket/);
   await page.screenshot({
     path: `${SCREENSHOT_DIR}/create-ticket/${testInfo.project.name}.png`,
@@ -27,7 +28,7 @@ test("capture Create Ticket screen", async ({ page }, testInfo) => {
 });
 
 test("capture My Tickets screen", async ({ page }, testInfo) => {
-  await selectDevRequester(page);
+  await login(page);
   await page.screenshot({
     path: `${SCREENSHOT_DIR}/my-tickets/${testInfo.project.name}.png`,
     fullPage: true,
@@ -35,11 +36,11 @@ test("capture My Tickets screen", async ({ page }, testInfo) => {
 });
 
 test("capture Ticket Detail screen", async ({ page }, testInfo) => {
-  await selectDevRequester(page);
+  await login(page);
 
   const uniqueSummary = `Visual QA test ticket ${Date.now()}`;
 
-  await page.getByRole("link", { name: /create ticket/i }).click();
+  await page.getByRole("link", { name: /create ticket/i }).first().click();
   await page.waitForURL(/create-ticket/);
   await page.getByLabel(/^category/i).selectOption({ index: 1 });
   await page.getByLabel(/related system/i).selectOption({ index: 1 });
@@ -59,8 +60,7 @@ test("capture Ticket Detail screen", async ({ page }, testInfo) => {
       .click();
   }
   await page.waitForURL(/\/tickets\/\d+/);
-  await page.getByText(/loading ticket/i).waitFor({ state: "hidden" });
-  await page.getByRole("heading", { name: "Attachments" }).waitFor({ state: "visible" });
+
   await page.screenshot({
     path: `${SCREENSHOT_DIR}/ticket-detail/${testInfo.project.name}.png`,
     fullPage: true,

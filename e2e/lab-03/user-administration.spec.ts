@@ -18,6 +18,7 @@ test.describe("User administration", () => {
 
     // 1. Create a user, confirm the initial password is shown.
     await page.getByRole("button", { name: /create user/i }).click();
+    await page.getByLabel(/full name/i).scrollIntoViewIfNeeded();
     await page.getByLabel(/full name/i).fill("E2E Admin Test User");
     await page.getByLabel(/email address/i).fill(uniqueEmail);
     await page.getByRole("button", { name: /^save user$/i }).click();
@@ -27,6 +28,7 @@ test.describe("User administration", () => {
     // 2. Hit a duplicate-email error.
     await page.getByRole("button", { name: /^cancel$/i }).click();
     await page.getByRole("button", { name: /create user/i }).click();
+    await page.getByLabel(/full name/i).scrollIntoViewIfNeeded();
     await page.getByLabel(/full name/i).fill("Duplicate Attempt");
     await page.getByLabel(/email address/i).fill(uniqueEmail);
     await page.getByRole("button", { name: /^save user$/i }).click();
@@ -37,6 +39,7 @@ test.describe("User administration", () => {
     // 3. Edit the newly created user's name.
     await page.getByPlaceholder(/search users/i).fill(uniqueEmail);
     await page.locator("tr", { hasText: uniqueEmail }).getByRole("button", { name: /edit/i }).click();
+    await page.getByLabel(/full name/i).scrollIntoViewIfNeeded();
     await page.getByLabel(/full name/i).fill("E2E Admin Test User Edited");
     await page.getByRole("button", { name: /^save user$/i }).click();
 
@@ -44,6 +47,7 @@ test.describe("User administration", () => {
 
     // 4. Reset the user's password.
     await page.locator("tr", { hasText: uniqueEmail }).getByRole("button", { name: /edit/i }).click();
+    await page.getByLabel(/full name/i).scrollIntoViewIfNeeded();
     await page.getByRole("button", { name: /set new initial password/i }).click();
 
     await expect(page.getByText(/new initial password/i)).toBeVisible();

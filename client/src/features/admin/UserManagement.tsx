@@ -133,7 +133,7 @@ export default function UserManagement() {
       <h1 className="h3 mb-3">Users</h1>
 
       <div className="row">
-        <div className="col-12 col-md-7">
+        <div className="col-12 col-lg-7">
           <div className="d-flex gap-2 mb-3">
             <input
               type="text"
@@ -157,16 +157,17 @@ export default function UserManagement() {
           {loadState === "error" && <div className="alert alert-danger">Unable to load users.</div>}
 
           {loadState === "success" && (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
+            <div className="table-responsive">
+              <table className="table">
+               <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
               <tbody>
                 {users.map((u) => (
                   <tr key={u.id}>
@@ -189,11 +190,12 @@ export default function UserManagement() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
 
         {formMode !== "closed" && (
-          <div className="col-12 col-md-5">
+          <div className="col-12 col-lg-5 user-admin-form-panel">
             <div className="card">
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-center mb-3">

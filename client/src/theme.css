@@ -95,3 +95,14 @@ body {
   border-radius: 4px;
   padding: 0.5rem;
 }
+
+@media (max-width: 991.98px) {
+  .user-admin-form-panel {
+    order: -1;
+  }
+}
+
+.table-responsive table td,
+.table-responsive table th {
+  white-space: nowrap;
+}
