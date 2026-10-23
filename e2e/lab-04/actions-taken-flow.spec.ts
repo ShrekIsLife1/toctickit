@@ -52,8 +52,8 @@ test.describe("Actions Taken Lifecycle (E2E-01)", () => {
     await page.getByRole("button", { name: /save action/i }).click();
 
     // Verify Action appears in list
-    await expect(page.getByText("First diagnostic inspection completed.")).toBeVisible();
-    await expect(page.getByText("Verified cable integrity.")).toBeVisible();
+    await expect(page.getByText("First diagnostic inspection completed.").filter({ visible: true })).toBeVisible();
+    await expect(page.getByText("Verified cable integrity.").filter({ visible: true })).toBeVisible();
 
     // Logout Kevin
     await page.getByRole("button", { name: /logout/i }).click();
@@ -75,7 +75,7 @@ test.describe("Actions Taken Lifecycle (E2E-01)", () => {
     await page.getByPlaceholder(/state the observed outcome/i).fill("All voltages normal.");
     await page.getByRole("button", { name: /save action/i }).click();
 
-    await expect(page.getByText("Secondary motherboard testing performed.")).toBeVisible();
+    await expect(page.getByText("Secondary motherboard testing performed.").filter({ visible: true })).toBeVisible();
 
     // Logout Lisa
     await page.getByRole("button", { name: /logout/i }).click();
@@ -88,8 +88,8 @@ test.describe("Actions Taken Lifecycle (E2E-01)", () => {
     await page.goto(`/tickets/${ticketId}`);
     await page.waitForURL(new RegExp(`/tickets/${ticketId}`));
 
-    await expect(page.getByText("First diagnostic inspection completed.")).toBeVisible();
-    await expect(page.getByText("Secondary motherboard testing performed.")).toBeVisible();
+    await expect(page.getByText("First diagnostic inspection completed.").filter({ visible: true })).toBeVisible();
+    await expect(page.getByText("Secondary motherboard testing performed.").filter({ visible: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /\+ add action/i })).not.toBeVisible();
     await expect(page.getByRole("button", { name: /edit action/i })).not.toBeVisible();
   });

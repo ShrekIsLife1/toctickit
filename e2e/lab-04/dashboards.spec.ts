@@ -54,7 +54,7 @@ test.describe("Multi-Role Dashboard Experience (E2E-03)", () => {
 
     await expect(page.getByText(/welcome back, administrator!|welcome back, admin!/i)).toBeVisible();
     await expect(page.getByText(/system user accounts/i)).toBeVisible();
-    await expect(page.getByText(/active users/i)).toBeVisible();
+    await expect(page.getByText("Active Users", { exact: true })).toBeVisible();
 
     // Click Manage Users link
     await page.getByRole("link", { name: /manage users/i }).click();

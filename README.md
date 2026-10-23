@@ -102,41 +102,86 @@ header.
 - `/forbidden` — shown when an authenticated user's role does not permit
   a route they reached
 
+## Lab 4 — Actions Taken, Dashboards, and Final Regression
+
+Lab 4 completes the full TokTickIT service desk workflow:
+- **Actions Taken:** IT Staff and Administrators record work performed on tickets (`ActionTaken` model) with date/time, description, outcome, follow-up flags, and attachment notes.
+- **Workflow & Resolution Gate (BR-14):** Formal status transitions enforced by the backend. Moving to `RESOLVED` requires an assigned ticket owner and at least one recorded Action Taken.
+- **Requester Advisory:** Requesters can mark `problemAppearsResolved` without directly altering ticket status.
+- **Optimistic Concurrency (BR-16, BR-17):** Ticket and Action Taken updates require `expectedVersion` to prevent silent overwrite races (returns 409 `STALE_UPDATE`).
+- **Role Dashboards:**
+  - Requester Dashboard (`/dashboard`) summarizing personal active, waiting, and resolved tickets with drill-downs.
+  - IT Staff Dashboard (`/staff/dashboard`) showing operational queue metrics, urgent tickets, and priority breakdown.
+  - Administrator Dashboard extending IT Staff metrics with user account statistics.
+- **Hardening & Accessibility:** WCAG AA visible focus indicators (`:focus-visible`), aria landmarks, responsive layouts across desktop, tablet, and mobile, and full regression test suite.
+
+### New API Endpoints (Lab 4)
+- `GET /api/tickets/:id/actions-taken` — list Actions Taken (ordered chronologically)
+- `POST /api/tickets/:id/actions-taken` — record a new Action Taken (IT Staff/Admin only, supports `Idempotency-Key` and `expectedVersion`)
+- `PATCH /api/tickets/:id/actions-taken/:actionId` — edit an Action Taken (`expectedVersion` required)
+- `POST /api/tickets/:id/resolve-indication` — Requester advisory resolution mark
+- `GET /api/dashboard/requester` — Requester dashboard metrics and recent tickets
+- `GET /api/dashboard/staff` — IT Staff dashboard queue metrics (includes `userCounts` for Admins)
+
+### Frontend routes (Lab 4 additions)
+- `/dashboard` — Requester role dashboard
+- `/staff/dashboard` — IT Staff / Administrator role dashboard
+- Ticket Detail screens now embed `ActionsTakenSection` (read-only for Requesters, full create/edit with conflict recovery for IT Staff)
+
+### Database Migration & Rollback Strategy
+The Lab 4 migration is strictly additive and preserves 100% of existing data:
+- Adds `ActionTaken` model with foreign keys to `Ticket` and `User`.
+- Adds `version` integer (default 1) and `statusChangedAt` timestamp to `Ticket`.
+- Adds compound indexes for dashboard query performance (`[currentStatus, ticketOwnerId]`, `[requesterId, currentStatus]`).
+- Seed script (`server/prisma/seed.ts`) is idempotent and safely re-runnable:
+  ```bash
+  npm run prisma:seed --prefix server
+  ```
+- **Disaster Recovery / Rollback:**
+  In case of an operational rollback, previous Lab 3 queries remain fully functional because the migration only added nullable or defaulted fields. To restore from backup:
+  ```bash
+  psql "$DATABASE_URL" < backup.sql
+  npx prisma generate --schema=server/prisma/schema.prisma
+  ```
+
 ## Testing
 
 ### Unit and API tests (backend)
+Runs all 19 test suites (127 tests) across Labs 1 to 4:
 ```bash
 cd server
 npm test
 ```
 
 ### Unit and UI component tests (frontend)
+Runs all 13 component test suites (67 tests) across Labs 1 to 4:
 ```bash
 cd client
 npm test
 ```
 
 ### End-to-end and visual/responsive tests
-Requires both servers running against a seeded database.
+Requires both servers running against a seeded database:
 ```bash
-npx playwright install chromium   # first time only
-npx playwright test               # from the repository root
+# Terminal 1: backend server
+npm run dev --prefix server
+
+# Terminal 2: frontend dev server
+npm run dev --prefix client
+
+# Terminal 3: run Playwright E2E and visual tests
+npx playwright test
 ```
-Responsive screenshots are written to `artifacts/lab-02/screenshots/` and
-`artifacts/lab-03/screenshots/`.
+Responsive screenshots are written to `artifacts/lab-02/screenshots/`, `artifacts/lab-03/screenshots/`, and `artifacts/lab-04/screenshots/`.
 
 ## Documentation
 
 - `docs/lab-01/` — Lab 1 tests, AI use, and reviewer notes
-- `docs/lab-02/` — Lab 2 specification, tests, UI spec, API spec, AI use,
-  reviewer notes
-- `docs/lab-03/specification.md` — Sprint 3 engineering specification
-  (authentication, authorization matrix, IT Staff workflow, Administrator
-  user management)
-- `docs/lab-03/tests.md` — Sprint 3 test plan and results
-- `docs/lab-03/ui-spec.md` — Zen Green UI specification extensions (Login,
-  Change Password, Ticket Queue, extended Ticket Detail, User Management)
-- `docs/lab-03/api-spec.md` — REST API contract, including the full status
-  transition matrix
-- `docs/lab-03/ai-use.md` — AI use and reflection
-- `docs/lab-03/reviewer.md` — peer review evidence
+- `docs/lab-02/` — Lab 2 specification, tests, UI spec, API spec, AI use, reviewer notes
+- `docs/lab-03/` — Lab 3 specification, tests, UI spec, API spec, AI use, reviewer notes
+- `docs/lab-04/specification.md` — Sprint 4 engineering specification (Actions Taken, resolution gate, concurrency, role dashboards)
+- `docs/lab-04/tests.md` — Sprint 4 test plan, traceability matrix, and execution record
+- `docs/lab-04/ui-spec.md` — Zen Green UI specification extensions (Actions Taken section, Requester & Staff dashboards)
+- `docs/lab-04/api-spec.md` — REST API contract (Actions Taken, dashboards, resolution gate, status matrix)
+- `docs/lab-04/ai-use.md` — Sprint 4 AI use log, key prompts, and engineering reflection
+- `docs/lab-04/reviewer.md` — Sprint 4 peer review record (Issues 20 to 27)

@@ -197,7 +197,7 @@ export default function StaffTicketDetail() {
   const permittedStatuses = STATUS_TRANSITIONS[ticket.currentStatus] ?? [];
 
   return (
-    <div className="container py-5" style={{ maxWidth: 900 }}>
+    <div className="container py-5" style={{ maxWidth: 1050 }}>
       <Link to="/staff/queue" className="btn btn-zen-secondary btn-sm mb-3">
         ← Back to Queue
       </Link>

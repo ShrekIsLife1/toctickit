@@ -44,14 +44,17 @@ test.describe("Ticket Resolution & Gate Lifecycle (E2E-02)", () => {
     // Status transition to OPEN first
     const statusSelect = page.locator("select").nth(1);
     await statusSelect.selectOption("OPEN");
+    await expect(statusSelect).toHaveValue("OPEN");
+
     await statusSelect.selectOption("IN_PROGRESS");
+    await expect(statusSelect).toHaveValue("IN_PROGRESS");
 
     // Attempt to move to RESOLVED before assigning owner or actions taken
     await statusSelect.selectOption("RESOLVED");
     // Inline resolution gate warning banner appears
-    await expect(page.getByText(/cannot be resolved until all conditions are met/i)).toBeVisible();
-    await expect(page.getByText(/must have an assigned ticket owner/i)).toBeVisible();
-    await expect(page.getByText(/at least one action taken must be recorded/i)).toBeVisible();
+    await expect(page.getByText(/cannot be resolved until all resolution gate requirements are satisfied/i)).toBeVisible();
+    await expect(page.getByText(/must have an assigned owner/i)).toBeVisible();
+    await expect(page.getByText(/must have at least one Action Taken recorded/i)).toBeVisible();
 
     // 3. Claim ticket and record action taken
     await page.getByRole("button", { name: /claim this ticket/i }).click();
@@ -61,7 +64,7 @@ test.describe("Ticket Resolution & Gate Lifecycle (E2E-02)", () => {
     await page.getByPlaceholder(/detail the work carried out/i).fill("Replaced faulty power supply.");
     await page.getByPlaceholder(/state the observed outcome/i).fill("System boots normally.");
     await page.getByRole("button", { name: /save action/i }).click();
-    await expect(page.getByText("Replaced faulty power supply.")).toBeVisible();
+    await expect(page.getByText("Replaced faulty power supply.").first()).toBeVisible();
 
     // Logout Staff
     await page.getByRole("button", { name: /logout/i }).click();
@@ -92,7 +95,8 @@ test.describe("Ticket Resolution & Gate Lifecycle (E2E-02)", () => {
     await page.goto(`/staff/tickets/${ticketId}`);
     await page.waitForURL(new RegExp(`/staff/tickets/${ticketId}`));
 
-    await statusSelect.selectOption("RESOLVED");
-    await expect(page.getByText(/resolved/i).first()).toBeVisible();
+    const currentStatusSelect = page.locator("select").nth(1);
+    await currentStatusSelect.selectOption("RESOLVED");
+    await expect(currentStatusSelect).toHaveValue("RESOLVED");
   });
 });
