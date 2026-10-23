@@ -66,6 +66,15 @@ describe("IT Staff Ticket operations", () => {
 
     await staffAgent.patch(`/api/staff/tickets/${ticket.id}`).send({ currentStatus: "OPEN" });
     await staffAgent.patch(`/api/staff/tickets/${ticket.id}`).send({ currentStatus: "IN_PROGRESS" });
+
+    // Lab 4 resolution gate: requires an assigned owner and at least one Action Taken
+    const meRes = await staffAgent.get("/api/auth/me");
+    await staffAgent.post(`/api/staff/tickets/${ticket.id}/claim`).send({ ticketOwnerId: meRes.body.id });
+    await staffAgent.post(`/api/tickets/${ticket.id}/actions-taken`).send({
+      description: "Investigated and resolved issue",
+      result: "Verified working normally",
+    });
+
     const resolvedRes = await staffAgent.patch(`/api/staff/tickets/${ticket.id}`).send({ currentStatus: "RESOLVED" });
     const closedRes = await staffAgent.patch(`/api/staff/tickets/${ticket.id}`).send({ currentStatus: "CLOSED" });
 
