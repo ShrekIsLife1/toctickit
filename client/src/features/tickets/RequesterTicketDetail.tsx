@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import AttachmentSection from "./AttachmentSection";
 import { fetchComments, markProblemResolved, Comment } from "../../api";
 import PublicComments from "./PublicComments";
+import ActionsTakenSection from "./ActionsTakenSection";
 
 type LoadState = "loading" | "success" | "not-found" | "error";
 
@@ -143,8 +144,14 @@ export default function UserTicketDetail() {
         </div>
       </div>
 
+      <ActionsTakenSection
+        ticketId={ticketId}
+        readOnly={true}
+        ticketStatus={ticket.currentStatus}
+      />
+
       <AttachmentSection
-        userId={user!.id}
+        requesterId={user!.id}
         ticketId={ticketId}
         attachments={attachments}
         onAttachmentsChanged={loadAttachments}

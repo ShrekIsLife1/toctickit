@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import SystemCheck from "../../src/features/system/SystemCheck.js";
-import * as api from "../../src/api.js";
+import SystemCheck from "./SystemCheck";
+import * as api from "../../api";
 
 describe("App", () => {
   // WORKED EXAMPLE — provided for you.

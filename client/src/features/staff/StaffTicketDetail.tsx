@@ -15,6 +15,7 @@ import { useAuth } from "../../context/AuthContext";
 import AttachmentSection from "../tickets/AttachmentSection";
 import PublicComments from "../tickets/PublicComments";
 import InternalNotes from "./InternalNotes";
+import ActionsTakenSection from "../tickets/ActionsTakenSection";
 
 type LoadState = "loading" | "success" | "not-found" | "error";
 
@@ -154,13 +155,13 @@ export default function StaffTicketDetail() {
   async function handleClaim() {
     if (!user || !ticket) return;
     setSavingField("claim");
-    setSaveError("");
+    setSaveError(null);
     try {
       await claimTicket(ticketId, user.id);
       const refreshed = await fetchStaffTicket(ticketId);
       setTicket(refreshed);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Unable to claim ticket");
+      setSaveError({ message: err instanceof Error ? err.message : "Unable to claim ticket" });
     } finally {
       setSavingField(null);
     }
@@ -288,6 +289,13 @@ export default function StaffTicketDetail() {
           <ReadOnlyBlock label="Description" value={ticket.description} multiline />
         </div>
       </div>
+
+      <ActionsTakenSection
+        ticketId={ticketId}
+        readOnly={false}
+        ticketStatus={ticket.currentStatus}
+        onActionChanged={reloadTicket}
+      />
 
       <AttachmentSection
         requesterId={ticket.requesterId}
