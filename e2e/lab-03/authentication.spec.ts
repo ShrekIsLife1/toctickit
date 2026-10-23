@@ -13,9 +13,9 @@ test.describe("Authentication", () => {
     await page.getByLabel(/^password$/i).fill("ChangeMe123!");
     await page.getByRole("button", { name: /sign in/i }).click();
 
-    // Seeded accounts have mustChangePassword: false, so this lands directly
-    // on My Tickets — assert the authenticated shell renders correctly.
-    await page.waitForURL(/my-tickets/);
+    // Seeded accounts have mustChangePassword: false, so this lands on the role dashboard
+    // or My Tickets — assert the authenticated shell renders correctly.
+    await page.waitForURL(/\/(dashboard|my-tickets)/);
     await expect(page.getByText(/jennifer anderson/i)).toBeVisible();
 
     await page.getByRole("button", { name: /logout/i }).click();

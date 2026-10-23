@@ -14,7 +14,8 @@ test.describe("User administration", () => {
     const uniqueEmail = `e2e-admin-test-${Date.now()}@example.com`;
 
     await login(page, "admin@example.com", "ChangeMe123!");
-    await page.waitForURL(/admin\/users/);
+    await page.waitForURL(/\/(admin\/users|staff\/dashboard)/);
+    await page.goto("/admin/users");
 
     // 1. Create a user, confirm the initial password is shown.
     await page.getByRole("button", { name: /create user/i }).click();
