@@ -149,7 +149,7 @@ export default function UserTicketDetail() {
         attachments={attachments}
         onAttachmentsChanged={loadAttachments}
       />
-      {ticket.currentStatus === "RESOLVED" && (       
+      {["OPEN", "IN_PROGRESS", "WAITING_FOR_REQUESTER", "REOPENED"].includes(ticket.currentStatus) && (       
         <div className="mt-3">
           {ticket.problemAppearsResolved ? (
             <button className="btn btn-zen-secondary" disabled>

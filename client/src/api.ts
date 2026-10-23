@@ -53,8 +53,20 @@ export interface Ticket {
   ticketOwnerId: number | null;
   resolutionSummary: string | null;
   createdAt: string;
-  updatedAt: string;
+  version?: number;
+  statusChangedAt?: string;
   problemAppearsResolved: boolean;
+}
+
+export class ApiError extends Error {
+  code?: string;
+  details?: any;
+  constructor(message: string, code?: string, details?: any) {
+    super(message);
+    this.name = "ApiError";
+    this.code = code;
+    this.details = details;
+  }
 }
 
 export class ApiFieldError extends Error {
@@ -356,6 +368,8 @@ export interface StaffTicketDetail {
   ticketOwnerName: string | null;
   resolutionSummary: string | null;
   problemAppearsResolved: boolean;
+  version?: number;
+  statusChangedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -375,7 +389,12 @@ export async function fetchStaffTicket(ticketId: number): Promise<StaffTicketDet
 
 export async function updateStaffTicket(
   ticketId: number,
-  updates: { itPriority?: string; currentStatus?: string }
+  updates: {
+    itPriority?: string;
+    currentStatus?: string;
+    ticketOwnerId?: number | null;
+    expectedVersion?: number;
+  }
 ): Promise<StaffTicketDetail> {
   const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}`, {
     method: "PATCH",
@@ -385,7 +404,7 @@ export async function updateStaffTicket(
   });
   const body = await res.json();
   if (!res.ok) {
-    throw new Error(body?.error?.message ?? "Unable to update ticket");
+    throw new ApiError(body?.error?.message ?? "Unable to update ticket", body?.error?.code, body?.error?.details);
   }
   return body;
 }

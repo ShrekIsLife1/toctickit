@@ -9,6 +9,7 @@ import path from "path";
 import session from "express-session";
 import { hashPassword, verifyPassword, requireAuth } from "./auth.js";
 import { isValidTransition } from "./statusTransitions.js";
+import { validateResolutionGate } from "./resolutionGate.js";
 import { isSelfDeactivation, wouldRemoveLastActiveAdmin } from "./adminUserRules.js";
 import { getActionsTakenHandler, createActionTakenHandler, updateActionTakenHandler } from "./actionsTaken.js";
 import crypto from "crypto";
@@ -380,6 +381,17 @@ app.post("/api/tickets/:id/resolve-indication", requireAuth, async (req: Request
     if (!ticket) {
       return res.status(404).json({ error: { code: "NOT_FOUND", message: "Ticket not found" } });
     }
+
+    // Advisory indication is available on non-terminal tickets (reject CLOSED and CANCELLED)
+    if (["CLOSED", "CANCELLED"].includes(ticket.currentStatus)) {
+      return res.status(409).json({
+        error: {
+          code: "INVALID_STATUS_FOR_INDICATION",
+          message: `Problem resolved indication is not available on ${ticket.currentStatus} tickets.`,
+        },
+      });
+    }
+
     if (ticket.problemAppearsResolved) {
       return res.status(409).json({
         error: { code: "ALREADY_RESOLVED_INDICATED", message: "Already marked as resolved" },
@@ -790,7 +802,11 @@ app.post("/api/staff/tickets/:id/claim", requireAuth, async (req: Request, res: 
 
     const updated = await prisma.ticket.update({
       where: { id: ticketId },
-      data: { ticketOwnerId: owner.id },
+      data: {
+        ticketOwnerId: owner.id,
+        version: ticket.version + 1,
+        updatedAt: new Date(),
+      },
     });
 
     res.status(200).json(updated);
@@ -834,7 +850,7 @@ app.get("/api/staff/tickets/:id", requireAuth, async (req: Request, res: Respons
 app.patch("/api/staff/tickets/:id", requireAuth, async (req: Request, res: Response) => {
   const currentUser = (req as Request & { currentUser: { role: string } }).currentUser;
   const ticketId = Number(req.params.id);
-  const { itPriority, currentStatus } = req.body;
+  const { itPriority, currentStatus, ticketOwnerId, expectedVersion } = req.body;
 
   if (!["IT_STAFF", "ADMINISTRATOR"].includes(currentUser.role)) {
     return res.status(403).json({ error: { code: "FORBIDDEN", message: "Not permitted" } });
@@ -842,6 +858,12 @@ app.patch("/api/staff/tickets/:id", requireAuth, async (req: Request, res: Respo
 
   if (itPriority !== undefined && !["LOW", "MEDIUM", "HIGH"].includes(itPriority)) {
     return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Invalid itPriority" } });
+  }
+
+  if (expectedVersion !== undefined && typeof expectedVersion !== "number") {
+    return res.status(400).json({
+      error: { code: "VALIDATION_ERROR", message: "expectedVersion must be a number." },
+    });
   }
 
   try {
@@ -852,17 +874,79 @@ app.patch("/api/staff/tickets/:id", requireAuth, async (req: Request, res: Respo
       return res.status(404).json({ error: { code: "NOT_FOUND", message: "Ticket not found" } });
     }
 
-    if (currentStatus !== undefined) {
-      if (!isValidTransition(ticket.currentStatus, currentStatus)) {
-        return res.status(409).json({
-          error: { code: "INVALID_STATUS_TRANSITION", message: `Cannot move from ${ticket.currentStatus} to ${currentStatus}` },
+    // BR-16, AC-07: Optimistic concurrency check
+    if (expectedVersion !== undefined && ticket.version !== expectedVersion) {
+      return res.status(409).json({
+        error: {
+          code: "STALE_UPDATE",
+          message: "This Ticket has been modified by another user. Please reload the latest changes.",
+          details: { currentVersion: ticket.version },
+        },
+      });
+    }
+
+    // Ticket Owner assignment validation
+    let newOwnerId: number | null | undefined = undefined;
+    if (ticketOwnerId !== undefined) {
+      if (ticketOwnerId !== null) {
+        const owner = await prisma.user.findFirst({
+          where: { id: ticketOwnerId, isActive: true, role: { in: ["IT_STAFF", "ADMINISTRATOR"] } },
         });
+        if (!owner) {
+          return res.status(400).json({
+            error: { code: "VALIDATION_ERROR", message: "ticketOwnerId must reference an active IT Staff or Administrator" },
+          });
+        }
+        newOwnerId = owner.id;
+      } else {
+        newOwnerId = null;
       }
     }
 
     const data: Record<string, unknown> = {};
+
+    if (currentStatus !== undefined && currentStatus !== ticket.currentStatus) {
+      if (!isValidTransition(ticket.currentStatus, currentStatus)) {
+        return res.status(409).json({
+          error: {
+            code: "INVALID_STATUS_TRANSITION",
+            message: `Cannot move from ${ticket.currentStatus} to ${currentStatus}`,
+          },
+        });
+      }
+
+      // BR-14, AC-08: Resolution Gate enforcement
+      if (currentStatus === "RESOLVED") {
+        const effectiveOwnerId = newOwnerId !== undefined ? newOwnerId : ticket.ticketOwnerId;
+        const actionsCount = await prisma.actionTaken.count({ where: { ticketId } });
+        const gate = validateResolutionGate({ ticketOwnerId: effectiveOwnerId, actionsCount });
+
+        if (!gate.isMet) {
+          return res.status(409).json({
+            error: {
+              code: "RESOLUTION_GATE_NOT_MET",
+              message: "Ticket cannot be resolved until all resolution gate requirements are satisfied.",
+              details: gate.missingCriteria,
+            },
+          });
+        }
+      }
+
+      data.currentStatus = currentStatus;
+      data.statusChangedAt = new Date();
+
+      // BR-18: Reopening resets problemAppearsResolved
+      if (currentStatus === "REOPENED") {
+        data.problemAppearsResolved = false;
+      }
+    }
+
     if (itPriority !== undefined) data.itPriority = itPriority;
-    if (currentStatus !== undefined) data.currentStatus = currentStatus;
+    if (newOwnerId !== undefined) data.ticketOwnerId = newOwnerId;
+
+    // Increment version and bump updatedAt if any changes were applied
+    data.version = ticket.version + 1;
+    data.updatedAt = new Date();
 
     const updated = await prisma.ticket.update({ where: { id: ticketId }, data });
 

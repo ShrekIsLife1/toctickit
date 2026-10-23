@@ -9,6 +9,7 @@ import {
   StaffTicketDetail as StaffTicketDetailType,
   Attachment,
   Comment,
+  ApiError,
 } from "../../api";
 import { useAuth } from "../../context/AuthContext";
 import AttachmentSection from "../tickets/AttachmentSection";
@@ -39,7 +40,7 @@ export default function StaffTicketDetail() {
   const [publicComments, setPublicComments] = useState<Comment[]>([]);
   const [internalNotes, setInternalNotes] = useState<Comment[]>([]);
   const [savingField, setSavingField] = useState<"itPriority" | "status" | "claim" | null>(null);
-  const [saveError, setSaveError] = useState("");
+  const [saveError, setSaveError] = useState<{ message: string; details?: string[]; isStale?: boolean } | null>(null);
 
   const loadAttachments = useCallback(async () => {
     try {
@@ -86,15 +87,40 @@ export default function StaffTicketDetail() {
     };
   }, [ticketId, loadAttachments, loadComments]);
 
+  async function reloadTicket() {
+    setLoadState("loading");
+    try {
+      const refreshed = await fetchStaffTicket(ticketId);
+      setTicket(refreshed);
+      setSaveError(null);
+      setLoadState("success");
+      await loadAttachments();
+      await loadComments();
+    } catch {
+      setLoadState("error");
+    }
+  }
+
   async function handleItPriorityChange(value: string) {
     if (!ticket) return;
     setSavingField("itPriority");
-    setSaveError("");
+    setSaveError(null);
     try {
-      const updated = await updateStaffTicket(ticketId, { itPriority: value });
+      const updated = await updateStaffTicket(ticketId, {
+        itPriority: value,
+        expectedVersion: ticket.version,
+      });
       setTicket(updated);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Unable to update IT Priority");
+      if (err instanceof ApiError) {
+        setSaveError({
+          message: err.message,
+          details: Array.isArray(err.details) ? err.details : undefined,
+          isStale: err.code === "STALE_UPDATE",
+        });
+      } else {
+        setSaveError({ message: err instanceof Error ? err.message : "Unable to update IT Priority" });
+      }
     } finally {
       setSavingField(null);
     }
@@ -103,12 +129,23 @@ export default function StaffTicketDetail() {
   async function handleStatusChange(value: string) {
     if (!ticket) return;
     setSavingField("status");
-    setSaveError("");
+    setSaveError(null);
     try {
-      const updated = await updateStaffTicket(ticketId, { currentStatus: value });
+      const updated = await updateStaffTicket(ticketId, {
+        currentStatus: value,
+        expectedVersion: ticket.version,
+      });
       setTicket(updated);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Unable to update status");
+      if (err instanceof ApiError) {
+        setSaveError({
+          message: err.message,
+          details: Array.isArray(err.details) ? err.details : undefined,
+          isStale: err.code === "STALE_UPDATE",
+        });
+      } else {
+        setSaveError({ message: err instanceof Error ? err.message : "Unable to update status" });
+      }
     } finally {
       setSavingField(null);
     }
@@ -224,7 +261,23 @@ export default function StaffTicketDetail() {
             </div>
           </div>
 
-          {saveError && <div className="alert alert-danger py-2 small">{saveError}</div>}
+          {saveError && (
+            <div className="alert alert-danger py-2 small" role="alert">
+              <div className="fw-semibold">{saveError.message}</div>
+              {saveError.details && saveError.details.length > 0 && (
+                <ul className="mb-0 mt-1 ps-3">
+                  {saveError.details.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              )}
+              {saveError.isStale && (
+                <button className="btn btn-sm btn-outline-danger mt-2" onClick={reloadTicket}>
+                  Reload Ticket
+                </button>
+              )}
+            </div>
+          )}
           {ticket.problemAppearsResolved && (
             <div className="alert alert-success py-2 small">
               The Requester has indicated this problem appears resolved.
