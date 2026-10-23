@@ -106,3 +106,18 @@ body {
 .table-responsive table th {
   white-space: nowrap;
 }
+
+/* Accessibility: High-contrast visible focus indicator (AC-22, WCAG AA) */
+:focus-visible {
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: 2px !important;
+}
+
+.metric-card:focus-visible {
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: 2px !important;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}

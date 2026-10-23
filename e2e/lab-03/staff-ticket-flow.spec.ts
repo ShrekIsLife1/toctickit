@@ -15,9 +15,10 @@ test.describe("IT Staff ticket flow", () => {
 
     // 1. Requester creates a Ticket and posts a Public Comment.
     await login(page, "jennifer.anderson@example.com", "ChangeMe123!");
-    await page.waitForURL(/my-tickets/);
+    await page.waitForURL(/\/(dashboard|my-tickets)/);
 
-    await page.getByRole("link", { name: /create ticket/i }).first().click();    await page.waitForURL(/create-ticket/);
+    await page.getByRole("link", { name: /create ticket/i }).first().click();
+    await page.waitForURL(/create-ticket/);
     await page.getByLabel(/^category/i).selectOption({ index: 1 });
     await page.getByLabel(/related system/i).selectOption({ index: 1 });
     await page.getByLabel(/requested priority/i).selectOption({ index: 1 });
@@ -46,10 +47,10 @@ test.describe("IT Staff ticket flow", () => {
     await page.getByRole("button", { name: /logout/i }).click();
     await page.waitForURL(/login/);
 
-    // 2. IT Staff claims the ticket, sets IT Priority, moves status, and adds
-    //    both a Public Comment and an Internal Note.
+    // 2. IT Staff claims the ticket, sets IT Priority, moves status, records an Action Taken (resolution gate),
+    //    and adds both a Public Comment and an Internal Note.
     await login(page, "kevin.patel@example.com", "ChangeMe123!");
-    await page.waitForURL(/staff\/queue/);
+    await page.waitForURL(/\/(staff\/dashboard|staff\/queue)/);
 
     await page.goto(`/staff/tickets/${ticketId}`);
     await page.waitForURL(/\/staff\/tickets\/\d+/);
@@ -63,6 +64,14 @@ test.describe("IT Staff ticket flow", () => {
     const statusSelect = page.locator("select").nth(1);
     await statusSelect.selectOption("OPEN");
     await statusSelect.selectOption("IN_PROGRESS");
+
+    // Record Action Taken to satisfy Resolution Gate (BR-14)
+    await page.getByRole("button", { name: /\+ add action/i }).click();
+    await page.getByPlaceholder(/detail the work carried out/i).fill("Diagnosed and resolved ticket issue.");
+    await page.getByPlaceholder(/state the observed outcome/i).fill("Confirmed fully functional.");
+    await page.getByRole("button", { name: /save action/i }).click();
+    await expect(page.getByText("Diagnosed and resolved ticket issue.")).toBeVisible();
+
     await statusSelect.selectOption("RESOLVED");
 
     await page.getByPlaceholder(/type your comment here/i).fill("We resolved the issue on our end.");
@@ -78,7 +87,7 @@ test.describe("IT Staff ticket flow", () => {
     // 3. Requester confirms: sees the Public Comment, marks problem resolved,
     //    and never sees the Internal Note anywhere.
     await login(page, "jennifer.anderson@example.com", "ChangeMe123!");
-    await page.waitForURL(/my-tickets/);
+    await page.waitForURL(/\/(dashboard|my-tickets)/);
     await page.goto(requesterTicketUrl);
 
     await expect(page.getByText("We resolved the issue on our end.")).toBeVisible();

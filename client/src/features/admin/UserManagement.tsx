@@ -11,7 +11,12 @@ import { useAuth } from "../../context/AuthContext";
 type LoadState = "loading" | "success" | "error";
 type FormMode = "closed" | "create" | "edit";
 
-const EMPTY_FORM = { name: "", email: "", role: "REQUESTER" as const, isActive: true };
+const EMPTY_FORM: {
+  name: string;
+  email: string;
+  role: "REQUESTER" | "IT_STAFF" | "ADMINISTRATOR";
+  isActive: boolean;
+} = { name: "", email: "", role: "REQUESTER", isActive: true };
 
 export default function UserManagement() {
   const { user: currentUser } = useAuth();
