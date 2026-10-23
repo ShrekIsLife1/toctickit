@@ -598,3 +598,68 @@ export async function updateActionTaken(
   }
   return body;
 }
+
+// ---------------------------------------------------------------------------
+// Role Dashboards (Lab 4 - Issue 25)
+// ---------------------------------------------------------------------------
+
+export interface DashboardRecentTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  currentStatus: string;
+  requestedPriority?: string;
+  itPriority?: string | null;
+  ticketOwnerId?: number | null;
+  updatedAt: string;
+}
+
+export interface RequesterDashboardData {
+  openTickets: number;
+  waitingForRequester: number;
+  recentlyResolved: number;
+  closedTickets: number;
+  recentlyUpdated: DashboardRecentTicket[];
+}
+
+export interface UserCountsSummary {
+  active: number;
+  inactive: number;
+  byRole: {
+    REQUESTER: number;
+    IT_STAFF: number;
+    ADMINISTRATOR: number;
+  };
+}
+
+export interface StaffDashboardData {
+  unassigned: number;
+  ownedByMe: number;
+  byStatus: Record<string, number>;
+  byItPriority: Record<string, number>;
+  urgent: DashboardRecentTicket[];
+  recentlyUpdated: DashboardRecentTicket[];
+  userCounts?: UserCountsSummary;
+}
+
+export async function fetchRequesterDashboard(): Promise<RequesterDashboardData> {
+  const res = await fetch(`${API_URL}/api/dashboard/requester`, {
+    credentials: "include",
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    throw new ApiError(body?.error?.message ?? "Unable to load requester dashboard", body?.error?.code);
+  }
+  return body;
+}
+
+export async function fetchStaffDashboard(): Promise<StaffDashboardData> {
+  const res = await fetch(`${API_URL}/api/dashboard/staff`, {
+    credentials: "include",
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    throw new ApiError(body?.error?.message ?? "Unable to load staff dashboard", body?.error?.code);
+  }
+  return body;
+}
