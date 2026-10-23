@@ -8,6 +8,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   function isActive(path: string) {
+    if (path === "/dashboard" || path === "/staff/dashboard") {
+      return location.pathname === path;
+    }
     return location.pathname.startsWith(path);
   }
 
@@ -16,15 +19,25 @@ export default function AppShell({ children }: { children: ReactNode }) {
     navigate("/login");
   }
 
+  const logoTarget =
+    user?.role === "REQUESTER"
+      ? "/dashboard"
+      : user?.role === "IT_STAFF" || user?.role === "ADMINISTRATOR"
+      ? "/staff/dashboard"
+      : "/login";
+
   return (
     <>
       <header className="app-header py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div className="d-flex align-items-center gap-3 flex-wrap">
-          <Link to="/my-tickets" className="fw-bold fs-5">
+          <Link to={logoTarget} className="fw-bold fs-5">
             TokTickIT
           </Link>
           {user?.role === "REQUESTER" && (
             <>
+              <Link to="/dashboard" className={`app-nav-link ${isActive("/dashboard") ? "active" : ""}`}>
+                Dashboard
+              </Link>
               <Link to="/my-tickets" className={`app-nav-link ${isActive("/my-tickets") ? "active" : ""}`}>
                 My Tickets
               </Link>
@@ -34,14 +47,27 @@ export default function AppShell({ children }: { children: ReactNode }) {
             </>
           )}
           {user?.role === "IT_STAFF" && (
-            <Link to="/staff/queue" className={`app-nav-link ${isActive("/staff/queue") ? "active" : ""}`}>
-              My Queue
-            </Link>
+            <>
+              <Link to="/staff/dashboard" className={`app-nav-link ${isActive("/staff/dashboard") ? "active" : ""}`}>
+                Dashboard
+              </Link>
+              <Link to="/staff/queue" className={`app-nav-link ${isActive("/staff/queue") ? "active" : ""}`}>
+                Ticket Queue
+              </Link>
+            </>
           )}
           {user?.role === "ADMINISTRATOR" && (
-            <Link to="/admin/users" className={`app-nav-link ${isActive("/admin/users") ? "active" : ""}`}>
-              Users
-            </Link>
+            <>
+              <Link to="/staff/dashboard" className={`app-nav-link ${isActive("/staff/dashboard") ? "active" : ""}`}>
+                Dashboard
+              </Link>
+              <Link to="/staff/queue" className={`app-nav-link ${isActive("/staff/queue") ? "active" : ""}`}>
+                Ticket Queue
+              </Link>
+              <Link to="/admin/users" className={`app-nav-link ${isActive("/admin/users") ? "active" : ""}`}>
+                User Management
+              </Link>
+            </>
           )}
         </div>
         <div className="d-flex align-items-center gap-2">

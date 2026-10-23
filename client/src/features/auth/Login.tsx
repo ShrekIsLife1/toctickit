@@ -21,11 +21,9 @@ export default function Login() {
       if (user.mustChangePassword) {
         navigate("/change-password");
       } else if (user.role === "REQUESTER") {
-        navigate("/my-tickets");
-      } else if (user.role === "IT_STAFF") {
-        navigate("/staff/queue");
+        navigate("/dashboard");
       } else {
-        navigate("/admin/users");
+        navigate("/staff/dashboard");
       }
     } catch {
       setSubmitState("error");

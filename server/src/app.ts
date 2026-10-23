@@ -7,11 +7,12 @@ import { parsePagination, parseSort } from "./queryParsing.js";
 import { upload } from "./upload.js";
 import path from "path";
 import session from "express-session";
-import { hashPassword, verifyPassword, requireAuth } from "./auth.js";
+import { hashPassword, verifyPassword, requireAuth, requireRole } from "./auth.js";
 import { isValidTransition } from "./statusTransitions.js";
 import { validateResolutionGate } from "./resolutionGate.js";
 import { isSelfDeactivation, wouldRemoveLastActiveAdmin } from "./adminUserRules.js";
 import { getActionsTakenHandler, createActionTakenHandler, updateActionTakenHandler } from "./actionsTaken.js";
+import { getRequesterDashboardHandler, getStaffDashboardHandler } from "./dashboards.js";
 import crypto from "crypto";
 
 function generateInitialPassword(): string {
@@ -1137,5 +1138,10 @@ app.post("/api/admin/users/:id/reset-password", requireAuth, async (req: Request
   }
 });
 
+// ---------------------------------------------------------------------------
+// Role Dashboards (Lab 4 - Issue 25)
+// ---------------------------------------------------------------------------
+app.get("/api/dashboard/requester", requireAuth, requireRole("REQUESTER"), getRequesterDashboardHandler);
+app.get("/api/dashboard/staff", requireAuth, requireRole("IT_STAFF", "ADMINISTRATOR"), getStaffDashboardHandler);
 
 export default app;

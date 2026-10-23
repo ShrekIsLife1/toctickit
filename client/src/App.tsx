@@ -10,6 +10,8 @@ import AppShell from "./components/AppShell";
 import StaffTicketQueue from "./features/staff/StaffTicketQueue";
 import StaffTicketDetail from "./features/staff/StaffTicketDetail";
 import UserManagement from "./features/admin/UserManagement";
+import RequesterDashboard from "./features/dashboard/RequesterDashboard";
+import StaffDashboard from "./features/dashboard/StaffDashboard";
 
 function RequireAuth({
   children,
@@ -43,6 +45,20 @@ function Forbidden() {
       </div>
     </div>
   );
+}
+
+function RootRedirect() {
+  const { user, isInitializing } = useAuth();
+  if (isInitializing) {
+    return null;
+  }
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (user.role === "REQUESTER") {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <Navigate to="/staff/dashboard" replace />;
 }
 
 export default function App() {
@@ -86,7 +102,28 @@ export default function App() {
             }
           />
 
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route
+            path="/dashboard"
+            element={
+              <RequireAuth roles={["REQUESTER"]}>
+                <AppShell>
+                  <RequesterDashboard />
+                </AppShell>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/staff/dashboard"
+            element={
+              <RequireAuth roles={["IT_STAFF", "ADMINISTRATOR"]}>
+                <AppShell>
+                  <StaffDashboard />
+                </AppShell>
+              </RequireAuth>
+            }
+          />
+
+          <Route path="/" element={<RootRedirect />} />
           <Route
             path="/staff/queue"
             element={
