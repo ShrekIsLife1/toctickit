@@ -10,6 +10,7 @@ import session from "express-session";
 import { hashPassword, verifyPassword, requireAuth } from "./auth.js";
 import { isValidTransition } from "./statusTransitions.js";
 import { isSelfDeactivation, wouldRemoveLastActiveAdmin } from "./adminUserRules.js";
+import { getActionsTakenHandler, createActionTakenHandler, updateActionTakenHandler } from "./actionsTaken.js";
 import crypto from "crypto";
 
 function generateInitialPassword(): string {
@@ -396,6 +397,13 @@ app.post("/api/tickets/:id/resolve-indication", requireAuth, async (req: Request
     res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Unable to update ticket" } });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Actions Taken (Sprint 4)
+// ---------------------------------------------------------------------------
+app.get("/api/tickets/:id/actions-taken", requireAuth, getActionsTakenHandler);
+app.post("/api/tickets/:id/actions-taken", requireAuth, createActionTakenHandler);
+app.patch("/api/tickets/:id/actions-taken/:actionId", requireAuth, updateActionTakenHandler);
 
 // ---------------------------------------------------------------------------
 // Attachments (authenticated Requester)
