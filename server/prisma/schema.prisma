@@ -46,6 +46,8 @@ model User {
   tickets            Ticket[] @relation("RequesterTickets")
   ownedTickets       Ticket[] @relation("TicketOwner")
   comments           Comment[]
+  actionsPerformed   ActionTaken[] @relation("ActionPerformedBy")
+  actionsUpdated     ActionTaken[] @relation("ActionUpdatedBy")
 }
 
 model RelatedSystem {
@@ -110,16 +112,22 @@ model Ticket {
   currentStatus     TicketStatus      @default(NEW)
   problemAppearsResolved Boolean      @default(false)
   resolutionSummary String?
+  version           Int               @default(1)
+  statusChangedAt   DateTime          @default(now())
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
   attachments       Attachment[]
   comments          Comment[]
+  actionsTaken      ActionTaken[]
 
   @@index([requesterId])
   @@index([currentStatus])
   @@index([categoryId])
   @@index([ticketOwnerId])
+  @@index([ticketOwnerId, currentStatus])
+  @@index([requesterId, currentStatus])
+  @@index([updatedAt])
 }
 
 model Attachment {
@@ -136,4 +144,26 @@ model Attachment {
   uploadedAt       DateTime  @default(now())
 
   @@index([ticketId])
+}
+
+model ActionTaken {
+  id               Int      @id @default(autoincrement())
+  ticketId         Int
+  ticket           Ticket   @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  actionDateTime   DateTime @default(now())
+  description      String
+  result           String
+  performedById    Int
+  performedBy      User     @relation("ActionPerformedBy", fields: [performedById], references: [id])
+  followUpRequired Boolean  @default(false)
+  followUpNote     String?
+  attachmentNotes  String?
+  version          Int      @default(1)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  updatedById      Int?
+  updatedBy        User?    @relation("ActionUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([ticketId, actionDateTime, createdAt, id])
+  @@index([performedById])
 }
