@@ -53,9 +53,10 @@ export interface Ticket {
   ticketOwnerId: number | null;
   resolutionSummary: string | null;
   createdAt: string;
+  updatedAt?: string;
   version?: number;
   statusChangedAt?: string;
-  problemAppearsResolved: boolean;
+  problemAppearsResolved?: boolean;
 }
 
 export class ApiError extends Error {
@@ -493,6 +494,107 @@ export async function resetAdminUserPassword(
   const body = await res.json();
   if (!res.ok) {
     throw new Error(body?.error?.message ?? "Unable to reset password");
+  }
+  return body;
+}
+
+// ---------------------------------------------------------------------------
+// Actions Taken (Sprint 4)
+// ---------------------------------------------------------------------------
+export interface ActionTaken {
+  id: number;
+  ticketId: number;
+  actionDateTime: string;
+  description: string;
+  result: string;
+  performedById: number;
+  performedBy: {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+  };
+  followUpRequired: boolean;
+  followUpNote: string | null;
+  attachmentNotes: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  updatedById: number | null;
+  updatedBy: {
+    id: number;
+    name: string;
+  } | null;
+}
+
+export interface CreateActionTakenInput {
+  actionDateTime?: string;
+  description: string;
+  result: string;
+  followUpRequired?: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+}
+
+export interface UpdateActionTakenInput {
+  expectedVersion: number;
+  actionDateTime?: string;
+  description?: string;
+  result?: string;
+  followUpRequired?: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+}
+
+export async function fetchActionsTaken(ticketId: number): Promise<ActionTaken[]> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions-taken`, {
+    credentials: "include",
+  });
+  if (res.status === 404) {
+    throw new Error("NOT_FOUND");
+  }
+  if (!res.ok) {
+    throw new Error("Unable to load actions taken");
+  }
+  return res.json();
+}
+
+export async function createActionTaken(
+  ticketId: number,
+  input: CreateActionTakenInput,
+  idempotencyKey?: string
+): Promise<ActionTaken> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (idempotencyKey) {
+    headers["Idempotency-Key"] = idempotencyKey;
+  }
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions-taken`, {
+    method: "POST",
+    credentials: "include",
+    headers,
+    body: JSON.stringify(input),
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    throw new ApiError(body?.error?.message ?? "Unable to create action taken", body?.error?.code, body?.error?.details);
+  }
+  return body;
+}
+
+export async function updateActionTaken(
+  ticketId: number,
+  actionId: number,
+  input: UpdateActionTakenInput
+): Promise<ActionTaken> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions-taken/${actionId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    throw new ApiError(body?.error?.message ?? "Unable to update action taken", body?.error?.code, body?.error?.details);
   }
   return body;
 }
