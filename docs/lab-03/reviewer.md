@@ -1,4 +1,4 @@
-# Lab 2 — Peer Review Record 
+# Lab 3 — Peer Review Record 
 
 **Author:** <Baptiste Carré> — <69540460014> — GitHub: @<ShrekIsLife>
 **Peer reviewer:** <Clément Delrieu> — <69540460016> — GitHub: @<ClemDelGh>

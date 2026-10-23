@@ -266,7 +266,7 @@ export default function ActionsTakenSection({
                             </span>
                           </td>
                           <td>
-                            <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                            <div style={{ whiteSpace: "pre-wrap", overflowWrap: "break-word" }}>
                               {act.description}
                             </div>
                             {act.attachmentNotes && (
@@ -276,7 +276,7 @@ export default function ActionsTakenSection({
                             )}
                           </td>
                           <td>
-                            <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                            <div style={{ whiteSpace: "pre-wrap", overflowWrap: "break-word" }}>
                               {act.result}
                             </div>
                           </td>
